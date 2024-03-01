@@ -1,1 +1,1 @@
-setwd("C:/Users/Ernesto/Documents/universidad/proy2")
+setwd("C:/Users/Ernesto/Documents/universidad/proyecto2")
