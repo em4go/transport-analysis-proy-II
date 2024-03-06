@@ -1,16 +1,10 @@
-if (!requireNamespace("osmdata", quietly = TRUE)) {
-  install.packages("osmad")
-}
-if (!requireNamespace("igraph", quietly = TRUE)) {
-  install.packages("igraph")
-}
-if (!requireNamespace("leaflet", quietly = TRUE)) {
-  install.packages("leaflet")
-}
-library(leaflet)
+.lib<- c("igraph","osmdata", "dplyr", "leaflet")
 
-library(igraph)
-library (osmdata)
+
+.inst <- .lib %in% installed.packages()
+if (length(.lib[!.inst])>0) install.packages(.lib[!.inst])
+lapply(.lib, require, character.only=TRUE)
+
 
 coords_bb <- getbb("Calle músico martínez coll, 2. Valencia, Spain")
 rownames(coords_bb)
@@ -21,7 +15,7 @@ coords <- list(x=mean(coords_bb["x", ]), y=mean(coords_bb["y", ]))
 coords
 
 # Cargar los datos
-grafo <- read_graph("valencia_walk.graphml", format = "graphml")
+grafo <- read_graph("./data/networks_data/valencia_walk.graphml", format = "graphml")
 
 V(grafo)$x <- as.numeric(V(grafo)$x)
 V(grafo)$y <- as.numeric(V(grafo)$y)
