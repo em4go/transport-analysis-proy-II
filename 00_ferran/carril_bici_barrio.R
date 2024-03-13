@@ -50,7 +50,9 @@ for (i in 1:length(puntos_estaciones$geometry)) {
 
 barrios <- read.csv2("data/barrios_valencia.csv")
 
-polygons_barrios <- obtener_poligonos(barrios)
+
+# Hay que pasarle un dataframe con las variable geo_shape y Nombre obligatorias
+polygons_barrios <- obtener_poligonos(barrios) 
 
 
 
@@ -68,9 +70,9 @@ for (carril in 1:nrow(aristas)) {
   from_point <- st_point(c(V(grafo)[from]$x, V(grafo)[from]$y))
   to_point <- st_point(c(V(grafo)[to]$x, V(grafo)[to]$y))
   
-  b_from <- unlist(st_within(from_point, polygons_barrios$geometry))
-  b_to <- unlist(st_within(to_point, polygons_barrios$geometry))
-  
+  b_from <- unlist(st_within(from_point, polygons_barrios$geometry)) # recive un punto con la lista de poligonos
+  b_to <- unlist(st_within(to_point, polygons_barrios$geometry))     # y devuelve el indice del poligono en el que está el nodo
+                                                                     # si no esta devuelve un elemento vacio
   if (length(b_from) > 0 && length(b_to) > 0  && b_from == b_to) {
     aux <- rbind(aux, data.frame(barrio = polygons_barrios$Nombre[b_from]))
   }else {

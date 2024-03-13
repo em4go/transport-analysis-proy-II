@@ -27,13 +27,7 @@ puntos_estaciones <- do.call(rbind, puntos)
 puntos_estaciones$direccion <- estaciones$Direccion
 
 
-barrios <- read.csv2("data/distritos_valencia.csv", sep = ";")
-
-
-polygons <- lapply(barrios$geo_shape, function(x) st_read(x, quiet = TRUE))
-
-# Combina todos los objetos sf en un solo objeto sf
-polygons_barrios <- do.call(rbind, polygons)
+barrios <- read.csv2("data/barrios_valencia.csv", sep = ";")
 
 polygons_barrios <- obtener_poligonos(barrios)
 
@@ -61,5 +55,7 @@ for (est in 1:nrow(puntos_estaciones)) {
 names(est_barrio) <- c("barrio", "estacion", "geometry_estacion", "geometry_barrio")
 
 
+num_estaciones <- est_barrio %>% group_by(barrio) %>% summarise(num_estaciones = n())
 
 
+#metros_carril <- aristas %>% group_by(barrio) %>% summarise(metros_carril = sum(length))
