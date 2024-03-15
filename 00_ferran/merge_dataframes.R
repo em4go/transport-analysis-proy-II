@@ -5,6 +5,9 @@ library(sf)
 library(ggplot2)
 library(jsonlite)
 library(dplyr)
+library(geojsonsf)
+library(arrow)
+
 
 
 find_nearest_node <- function(graph, x_given, y_given) {
@@ -38,9 +41,11 @@ puntos_estaciones <- do.call(rbind, puntos)
 puntos_estaciones$direccion <- estaciones$Direccion
 
 
-barrios <- read.csv2("data/barrios_valencia.csv", sep = ";")
+barrios <- read.csv2("data/distritos_valencia.csv", sep = ";")
 
 polygons_barrios <- obtener_poligonos(barrios)
+
+names(polygons_barrios) <- c("geometry", "barrio")
 
 
 est_barrio <- data.frame()
@@ -51,12 +56,12 @@ for (est in 1:nrow(puntos_estaciones)) {
   b <- unlist(st_within(point, polygons_barrios$geometry)) # recive un punto con la lista de poligonos 
   # y devuelve el indice del poligono en el que está el nodo
   if (length(b) > 0) {
-    est_barrio <- rbind(est_barrio, data.frame(polygons_barrios$Nombre[b],
+    est_barrio <- rbind(est_barrio, data.frame(polygons_barrios$barrio[b],
                                                puntos_estaciones$direccion[est],
                                                point,
                                                polygons_barrios$geometry[b]))
   }else {
-    est_barrio <- rbind(est_barrio, data.frame(polygons_barrios$Nombre[b],
+    est_barrio <- rbind(est_barrio, data.frame(polygons_barrios$barrio[b],
                                                'Otro',
                                                point,
                                                NULL))
@@ -93,14 +98,14 @@ for (carril in 1:nrow(aristas)) {
   # si no esta devuelve un elemento vacio
   if (length(b_from) > 0 && length(b_to) > 0) {
     if (b_from == b_to){
-      aux <- rbind(aux, data.frame(barrio = polygons_barrios$Nombre[b_from],
+      aux <- rbind(aux, data.frame(barrio = polygons_barrios$barrio[b_from],
                                    longitud = aristas$length[carril]))
     }else {
     dist <- aristas$length[carril]/2
     
-    aux <- rbind(aux, data.frame(barrio = polygons_barrios$Nombre[b_from],
+    aux <- rbind(aux, data.frame(barrio = polygons_barrios$barrio[b_from],
                                  longitud = dist))
-    aux <- rbind(aux, data.frame(barrio = polygons_barrios$Nombre[b_to],
+    aux <- rbind(aux, data.frame(barrio = polygons_barrios$barrio[b_to],
                                  longitud = dist))
     }
   }else {
@@ -116,7 +121,15 @@ valenba_barrio <- merge(metros_carril, num_estaciones, by = "barrio", all = TRUE
 
 valenba_barrio[is.na(valenba_barrio)] <- 0
 
+valenba_barrio <- merge(valenba_barrio, polygons_barrios, by = "barrio")
 
+valenba_barrio$geo_shape <- sfc_geojson(valenba_barrio$geometry)
+
+# Guardamos el dataframe en formato parquet
+
+valenba_barrio <- valenba_barrio %>% select(-geometry)
+
+write_parquet(valenba_barrio, "data/valenbisi_distrito.parquet")
 
 
 
