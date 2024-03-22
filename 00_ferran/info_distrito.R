@@ -136,6 +136,7 @@ valenba_barrio$paradas_metro[is.na(valenba_barrio$paradas_metro)] <- 0
 
 # GUARDADO DE LA INFORMACIÓN EN UN PARQUET
 valenba_barrio <- valenba_barrio %>% select(-geometry)
+colnames(valenba_barrio) <- c("distrito", colnames(valenba_barrio)[2:length(colnames(valenba_barrio))])
 # Ejecutar solo cuando se quiera guardar el parquet
 write_parquet(valenba_barrio, "data/info_general_distrito.parquet")
 
