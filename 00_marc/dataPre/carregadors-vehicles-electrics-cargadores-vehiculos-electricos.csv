@@ -1,0 +1,53 @@
+﻿OBJECTID;Id;Distrito;Emplazamiento;Toma;Precio;Potencia;Observaciones;Conector;Tipo de carga;geo_shape;geo_point_2d
+3;3;2;C\ General San Martin, 7;1;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.37535715804858477, 39.46540872434464], ""type"": ""Point""}";39.46540872434464, -0.37535715804858477
+10;10;6;C\ Santa Rosa, 4;2;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.358459610269909, 39.46855719657758], ""type"": ""Point""}";39.46855719657758, -0.358459610269909
+13;13;6;C\ Amadeo Saboya,2;3;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.36329927474999324, 39.473995246203316], ""type"": ""Point""}";39.473995246203316, -0.36329927474999324
+14;14;6;C\ Amadeo Saboya,2;4;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.36327337717547026, 39.473989379452235], ""type"": ""Point""}";39.473989379452235, -0.36327337717547026
+23;23;1;C/ SAN VICENTE MARTIR 57;1;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.37829095415970176, 39.47013809995672], ""type"": ""Point""}";39.47013809995672, -0.37829095415970176
+24;24;1;C/ SAN VICENTE MARTIR 57;2;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.37830633113687523, 39.47012171751631], ""type"": ""Point""}";39.47012171751631, -0.37830633113687523
+27;27;6;AV. BLASCO IBAÑEZ 26;1;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.3625151935096272, 39.47787189068027], ""type"": ""Point""}";39.47787189068027, -0.3625151935096272
+28;28;6;AV. BLASCO IBAÑEZ 26;2;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.3624476138559977, 39.4778545013742], ""type"": ""Point""}";39.4778545013742, -0.3624476138559977
+31;31;8;c\ Primero de mayo 19;1;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.38818829055796156, 39.44902272576558], ""type"": ""Point""}";39.44902272576558, -0.38818829055796156
+34;34;14;C/ MASQUEFA 30;2;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.35905511569022563, 39.48839499163611], ""type"": ""Point""}";39.48839499163611, -0.35905511569022563
+25;25;4;C/ JOAQUIN BALLESTER (AL LADO DEL IVO);1;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.39019569252156755, 39.48253478020761], ""type"": ""Point""}";39.48253478020761, -0.39019569252156755
+4;4;2;C\ General San Martin, 7;2;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.3753308456699827, 39.46540065278635], ""type"": ""Point""}";39.46540065278635, -0.3753308456699827
+6;6;3;"Mercado Rojas Clemente
+c\ Simon Ortiz (en frente del nº1)";2;0,07€/kWp;"Según produccion
+FV";Carga depende de la disponibilidad del sol;TIPO 2;MODO 3;"{""coordinates"": [-0.3854949494421218, 39.47281834145527], ""type"": ""Point""}";39.47281834145527, -0.3854949494421218
+8;8;5;C\ Pintor Vilar, 1;2;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.3709007274814385, 39.48221775323359], ""type"": ""Point""}";39.48221775323359, -0.3709007274814385
+12;12;6;C\ Amadeo Saboya,2;2;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.3634307282362499, 39.474032552191126], ""type"": ""Point""}";39.474032552191126, -0.3634307282362499
+18;18;7;"Mercado Castilla
+(Pz. Maguncia)";2;0,07€/kWp;"Según produccion
+FV";Carga depende de la disponibilidad del sol;TIPO 2;MODO 3;"{""coordinates"": [-0.40360372102317543, 39.465973131670815], ""type"": ""Point""}";39.465973131670815, -0.40360372102317543
+26;26;4;C/ JOAQUIN BALLESTER (AL LADO DEL IVO);2;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.39028407322156566, 39.4825402785609], ""type"": ""Point""}";39.4825402785609, -0.39028407322156566
+29;29;7;C/ PINTOR STOLZ 69;1;0,19 €/kWp;7,5 kW dia;No disponible;TIPO 2;MODO 3;"{""coordinates"": [-0.40332119403475214, 39.47007259697718], ""type"": ""Point""}";39.47007259697718, -0.40332119403475214
+30;30;7;C/ PINTOR STOLZ 69;2;0,19 €/kWp;7,5 kW dia;No disponible;TIPO 2;MODO 3;"{""coordinates"": [-0.40326265466410866, 39.47005894684564], ""type"": ""Point""}";39.47005894684564, -0.40326265466410866
+32;32;8;c\ Primero de mayo 19;2;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.38808035816579933, 39.44899741787263], ""type"": ""Point""}";39.44899741787263, -0.38808035816579933
+33;33;14;C/ MASQUEFA 30;1;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.35901361872739385, 39.48847152372583], ""type"": ""Point""}";39.48847152372583, -0.35901361872739385
+1;1;2;c\ Conde Altea, 28;1;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.3676063707870176, 39.46612648701756], ""type"": ""Point""}";39.46612648701756, -0.3676063707870176
+9;9;6;C\ Santa Rosa, 4;1;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.3584821357781678, 39.46856211388229], ""type"": ""Point""}";39.46856211388229, -0.3584821357781678
+16;16;7;C\ Santiago de Lés;2;0,07€/kWp;"Según produccion
+FV";Carga depende de la disponibilidad del sol;TIPO 2;MODO 3;"{""coordinates"": [-0.4128996996922673, 39.46789050226904], ""type"": ""Point""}";39.46789050226904, -0.4128996996922673
+2;2;2;c\ Conde Altea, 28;2;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.3675769558813438, 39.466135676343775], ""type"": ""Point""}";39.466135676343775, -0.3675769558813438
+5;5;3;"Mercado Rojas Clemente
+c\ Simon Ortiz (en frente del nº1)";1;0,07€/kWp;"Según produccion
+FV";Carga depende de la disponibilidad del sol;TIPO 2;MODO 3;"{""coordinates"": [-0.385426954955445, 39.47281510000963], ""type"": ""Point""}";39.47281510000963, -0.385426954955445
+7;7;5;C\ Pintor Vilar, 1;1;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.3709635352158634, 39.482238543131196], ""type"": ""Point""}";39.482238543131196, -0.3709635352158634
+11;11;6;C\ Amadeo Saboya,2;1;0,19 €/kWp;7,5 kW dia;Carga lenta nocturna;TIPO 2;MODO 3;"{""coordinates"": [-0.3634587909685517, 39.47404110760199], ""type"": ""Point""}";39.47404110760199, -0.3634587909685517
+15;15;7;C\ Santiago de Lés;1;0,07€/kWp;"Según produccion
+FV";Carga depende de la disponibilidad del sol;TIPO 2;MODO 3;"{""coordinates"": [-0.4130518368227916, 39.46789388893991], ""type"": ""Point""}";39.46789388893991, -0.4130518368227916
+17;17;7;"Mercado Castilla
+(Pz. Maguncia)";1;0,07€/kWp;"Según produccion
+FV";Carga depende de la disponibilidad del sol;TIPO 2;MODO 3;"{""coordinates"": [-0.40371626405617445, 39.46600033017565], ""type"": ""Point""}";39.46600033017565, -0.40371626405617445
+19;19;11;"Mercado Cabanyal
+C\ Marino Sirera ( en frente nº6)";1;0,07€/kWp;"Según produccion
+FV";Carga depende de la disponibilidad del sol;TIPO 2;MODO 3;"{""coordinates"": [-0.3328842168631094, 39.467823429576754], ""type"": ""Point""}";39.467823429576754, -0.3328842168631094
+20;20;11;"Mercado Cabanyal
+C\ Marino Sirera ( en frente nº6)";2;0,07€/kWp;"Según produccion
+FV";Carga depende de la disponibilidad del sol;TIPO 2;MODO 3;"{""coordinates"": [-0.33289328630078413, 39.46776553135909], ""type"": ""Point""}";39.46776553135909, -0.33289328630078413
+21;21;11;"Pabellon Malva-rosa
+C\ Mendizabal";1;0,07€/kWp;"Según produccion
+FV";Carga depende de la disponibilidad del sol;TIPO 2;MODO 3;"{""coordinates"": [-0.32620663161947994, 39.483262653351005], ""type"": ""Point""}";39.483262653351005, -0.32620663161947994
+22;22;11;"Pabellon Malva-rosa
+C\ Mendizabal";2;0,07€/kWp;"Según produccion
+FV";Carga depende de la disponibilidad del sol;TIPO 2;MODO 3;"{""coordinates"": [-0.32623710403510786, 39.48326775979879], ""type"": ""Point""}";39.48326775979879, -0.32623710403510786

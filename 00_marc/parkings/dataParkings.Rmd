@@ -1,0 +1,67 @@
+---
+title: "Data Parkings"
+author: "Marc Hurtado"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Importamos las librerías
+
+dplyr: para manipulación de datos, seleccionar las columnas interesantes y eliminar las que no
+arrow: para guardar los datos en formato parquet
+tidyr: para manipulación de datos (separar columnas, de longitud y latitud)
+
+```{r}
+library(dplyr)
+library(arrow)
+library(tidyr)
+```
+
+```{r}
+data <- read.csv2('./parkings/parkings.csv', header = TRUE, sep = ';')
+```
+
+Variables a eliminar: 
+"Adreça...Direccion", "Portal", "Tipus...Tipo", "Places.lliures...Plazas.Libres",
+"Data.Última.Modificació...Fecha.Ultima.Modificación", "objectid", "ocupacion"
+
+```{r}
+parkings <- data %>%
+  select(-c("Adreça...Direccion", "Portal", "Tipus...Tipo", "Places.lliures...Plazas.Libres", "Data.Última.Modificació...Fecha.Ultima.Modificación", "objectid", "ocupacion"))
+```
+
+```{r}
+parkings
+```
+
+Usamnos la función separate para dividir la geo_point_2d en dos nuevas columnas
+
+```{r}
+parkings <- separate(parkings, geo_point_2d, into = c("Latitude", "Longitude"), sep = ",")
+
+parkings
+```
+
+Cambiamos el nombre de las columnas
+
+```{r}
+new_names <- c("Name", "Id", "Total parking spaces", "Geo_shape", "Latitude", "Longitude")
+
+colnames(parkings) <- new_names
+
+parkings
+```
+
+Guardamos la nueva variable con los datos filtrados en formato CSV, por defecto usa ',' como separador de columnas.
+
+```{r}
+write.csv(parkings, "./parkings/dataParkings.csv")
+```
+
+Guardamos la nueva variable con los datos filtrados en formato parquet, mediante la libreria Arrow.
+
+```{r}
+write_parquet(parkings, "./parkings/dataParkings.parquet")
+```
+
+

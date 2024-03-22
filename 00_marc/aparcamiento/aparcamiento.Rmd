@@ -1,0 +1,73 @@
+---
+title: "Datos Aparcamiento En Valencia"
+author: "Marc Hurtado"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Importamos las librerías para tratar los datos.
+
+dplyr: para manipulación de datos, seleccionar las columnas interesantes y eliminar las que no
+arrow: para guardar los datos en formato parquet
+
+```{r}
+library(dplyr)
+library(arrow)
+```
+
+Leemos los datos
+
+```{r}
+data <- read.csv('./dataPre/aparcamientoDistrito.csv', header = TRUE, sep = ',')
+```
+
+Seleccionamos las filas buenas de los aparcamientos (19primeras) ya que son los districtos
+
+```{r}
+data<- head(data, 19)
+
+data
+```
+
+Seleccionamos las columnas que nos interesan
+
+```{r}
+aparcamiento <-data %>% select(-c("X_id", "GRUP", "BARRI", "LLIURES", "ORA", "GUALS", "PÀRQUINGS", "SOLARS", "ALTRES", "HABITANTS.GRUP", "HABITANTS.HABITANTS.20.70"))
+
+aparcamiento
+```
+
+Renombramos las variables
+
+```{r}
+new_names <- c(
+  "Disrtict",
+  "Residents",
+  "Residents.20.70",
+  "Total",
+  "Tourism",
+  "Places.Residents",
+  "Places.Residents.20.70",
+  "Places.Tourism",
+  "Residents.Tourism",
+  "Residents.20.70.Tourism"
+)
+
+colnames(aparcamiento) <- new_names
+aparcamiento
+```
+```{r}
+
+```
+
+Guardamos la nueva variable con los datos filtrados en formato CSV, por defecto usa ',' como separador de columnas.
+
+```{r}
+write.csv(aparcamiento, "./dataPlazasAparcamiento.csv")
+```
+
+Guardamos la nueva variable con los datos filtrados en formato parquet, mediante la libreria Arrow.
+
+```{r}
+write_parquet(aparcamiento, "./dataPlazasAparcamiento.parquet")
+```
