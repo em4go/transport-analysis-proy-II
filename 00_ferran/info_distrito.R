@@ -129,10 +129,15 @@ valenba_barrio$paradas_metro[is.na(valenba_barrio$paradas_metro)] <- 0
 
 
 
+# DATOS DE PARKINGS PÚBLICOS EN LOS DISTRITOS
 
+parkings <- read_parquet("00_marc/dataTratada/info_dist.parquet")
+# Eliminación de los acentos y paso a mayúsculas
+parkings$district <- toupper(stri_trans_general(parkings$district, "Latin-ASCII"))
 
+prk2merge <- select(parkings, setdiff(colnames(parkings), colnames(valenba_barrio)))
 
-
+valenba_barrio <- merge(valenba_barrio, prk2merge, by.x = "barrio", by.y = "district", all.x = TRUE, na.rm = TRUE)
 
 # GUARDADO DE LA INFORMACIÓN EN UN PARQUET
 valenba_barrio <- valenba_barrio %>% select(-geometry)

@@ -41,7 +41,7 @@ puntos_estaciones <- do.call(rbind, puntos)
 puntos_estaciones$direccion <- estaciones$Direccion
 
 
-barrios <- read.csv2("data/distritos_valencia.csv", sep = ";")
+barrios <- read.csv2("data/barrios_valencia.csv", sep = ";")
 
 polygons_barrios <- obtener_poligonos(barrios)
 
@@ -121,7 +121,7 @@ valenba_barrio <- merge(metros_carril, num_estaciones, by = "barrio", all = TRUE
 
 valenba_barrio[is.na(valenba_barrio)] <- 0
 
-valenba_barrio <- merge(valenba_barrio, polygons_barrios, by = "barrio")
+valenba_barrio <- merge(valenba_barrio, polygons_barrios, by = "barrio", all.y = T)
 
 valenba_barrio$geo_shape <- sfc_geojson(valenba_barrio$geometry)
 
@@ -129,21 +129,5 @@ valenba_barrio$geo_shape <- sfc_geojson(valenba_barrio$geometry)
 
 valenba_barrio <- valenba_barrio %>% select(-geometry)
 
-write_parquet(valenba_barrio, "data/valenbisi_distrito.parquet")
+write_parquet(valenba_barrio, "data/valenbisi_barrio.parquet")
 
-
-
-
-aristas_na <- aristas %>% filter(barrio == "Others")
-
-m <- leaflet() %>% addTiles()
-
-for (i in 1:nrow(aristas_na)) {
-  m <- m %>% addPolylines(lng = c(V(grafo)[aristas_na$from[i]]$x, V(grafo)[aristas_na$to[i]]$x),
-                          lat = c(V(grafo)[aristas_na$from[i]]$y, V(grafo)[aristas_na$to[i]]$y),
-                          color = "black")
-}
-
-m <- m %>% addPolygons(data = polygons_barrios, color = "red", fillOpacity = 0.2, popup = ~Nombre)
-
-m

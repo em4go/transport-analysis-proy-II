@@ -10,6 +10,7 @@ library(geojsonsf)
 library(tidyr)
 library(arrow)
 library(tidytransit)
+library(stringi)
 
 
 establecer_localizacion <- function(punto, info_poligonos) {
@@ -46,7 +47,7 @@ poblacion <- poblacion %>% filter(!grepl("^$",X))
 poblacion <- poblacion[2:nrow(poblacion),]
 
 # Cambio de nombre de la columna para poder realizar el merge
-poblacion$barrio <- toupper(sapply(strsplit(poblacion$X, "\\. "), function(x) x[2]))
+poblacion$barrio <- toupper(sapply(strsplit(stri_trans_general(poblacion$X,"Latin-ASCII"), "\\. "), function(x) x[2]))
 
 poblacion <- poblacion %>% select(-c(X, X.1, X.2, X.3, X.4, X.5, X.6, X.7, X.8))
 
@@ -85,7 +86,7 @@ paradas$barrio <- lapply(paradas$geometry, function(x) establecer_localizacion(x
 # Contamos cuantas paradas tiene cada barrio y lo añadimos al data.frame
 emt_barrio <- paradas %>% group_by(barrio) %>% summarise(paradas_emt = n())
 
-valenba_barrio <- merge(valenba_barrio, emt_barrio, by = "barrio", na.rm = TRUE)
+valenba_barrio <- merge(valenba_barrio, emt_barrio, by = "barrio", na.rm = TRUE, all.x = T)
 
 # Datos sobre la superficie de carril bus
 
@@ -137,5 +138,5 @@ valenba_barrio$paradas_metro[is.na(valenba_barrio$paradas_metro)] <- 0
 # GUARDADO DE LA INFORMACIÓN EN UN PARQUET
 valenba_barrio <- valenba_barrio %>% select(-geometry)
 # Ejecutar solo cuando se quiera guardar el parquet
-#write_parquet(valenba_barrio, "data/info_general_barrio.parquet")
+write_parquet(valenba_barrio, "data/info_general_barrio.parquet")
 
