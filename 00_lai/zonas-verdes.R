@@ -27,8 +27,6 @@ head(df)
 summary(df$m2_poligon)
 names(df)
 
-df$geo_point_2d
-
 sum(df$m2_poligon)
 
 # Comprobamos si hay algún string vacío en la columna 'geo_shape'
@@ -113,6 +111,8 @@ setdiff(s_barrios, s_barrios2)
 # Obtengo un data frame resumen con la suma de las áreas de las zonas verdes por barrio
 df_resumen <- df %>% group_by(barrio) %>% summarise(area = sum(area))
 sum(df_resumen$area)
+
+print(df_resumen)
 
 # Guardo el data.frame en un csv
 write.csv2(df_resumen, "data/zonas_verdes_por_barrio.csv", row.names = FALSE)
