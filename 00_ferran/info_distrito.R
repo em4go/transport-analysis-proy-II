@@ -20,46 +20,46 @@ establecer_localizacion <- function(punto, info_poligonos) {
   if (length(b) == 0) {
     return(NA)
   } else {
-    return(info_poligonos$barrio[b])
+    return(info_poligonos$distrito[b])
   }
 }
 
 
 
-# vamos a crear un dataframe con la información de todos los barrios de valencia,
+# vamos a crear un dataframe con la información de todos los distritos de valencia,
 # ya se información a cerca de servicios públicos como terreno o población.
 
 
 
-# Lectura del fichero con información del valenbici por barrios de valencia
-valenba_barrio <- read_parquet("data/valenbisi_distrito.parquet")
+# Lectura del fichero con información del valenbici por distritos de valencia
+valenba_distrito <- read_parquet("data/valenbisi_distrito.parquet")
 
-# Fichero con los datos de población por barrio
+# Fichero con los datos de población por distrito
 poblacion <- read.csv2("00_hervas/Distritos_Pob.csv", sep = ";", header = TRUE, encoding = "UTF-8")
 
-# Eliminación de la primera fila con el valor de total, para quedarnos con los barrios
+# Eliminación de la primera fila con el valor de total, para quedarnos con los distritos
 poblacion <- poblacion[2:20,]
 
 # Cambio de nombre de la columna para poder realizar el merge, necesario quitar los acentos
-poblacion$barrio <- toupper(sapply(strsplit(stri_trans_general(poblacion$X, "Latin-ASCII"), "\\. "), function(x) x[2]))
+poblacion$distrito <- toupper(sapply(strsplit(stri_trans_general(poblacion$X, "Latin-ASCII"), "\\. "), function(x) x[2]))
 
 poblacion <- poblacion %>% select(-X)
 
-poblacion$barrio[poblacion$barrio == "POBLES DEL NORD"] <- "POBLATS DEL NORD"
-poblacion$barrio[poblacion$barrio == "POBLES DEL SUD"] <- "POBLATS DEL SUD"
-poblacion$barrio[poblacion$barrio == "POBLES DE L'OEST"] <- "POBLATS DE L'OEST"
+poblacion$distrito[poblacion$distrito == "POBLES DEL NORD"] <- "POBLATS DEL NORD"
+poblacion$distrito[poblacion$distrito == "POBLES DEL SUD"] <- "POBLATS DEL SUD"
+poblacion$distrito[poblacion$distrito == "POBLES DE L'OEST"] <- "POBLATS DE L'OEST"
 
-valenba_barrio <- merge(valenba_barrio, poblacion, by = "barrio", all.x = TRUE)
-
-
+valenba_distrito <- merge(valenba_distrito, poblacion, by = "distrito", all.x = TRUE)
 
 
-# OTROS DATOS DE LOS BARRIOS
 
-valenba_barrio$geometry <- geojson_sf(valenba_barrio$geo_shape)
 
-# datos sobre la superficie de los barrios
-valenba_barrio$superficie <- st_area(valenba_barrio$geometry)
+# OTROS DATOS DE LOS distritoS
+
+valenba_distrito$geometry <- geojson_sf(valenba_distrito$geo_shape)
+
+# datos sobre la superficie de los distritos
+valenba_distrito$superficie_distrito <- st_area(valenba_distrito$geometry)
 
 # datos sobre transporte público
 emt <- read_gtfs("data/gtfs_data/transit_emt_valencia.zip")
@@ -74,18 +74,18 @@ coordenadas <- subset(paradas, select = c("stop_lat", "stop_lon"))
 b <- st_as_sf(coordenadas, coords = c("stop_lon", "stop_lat"), crs = 4326)
 paradas <- cbind(paradas, b)
 
-# Añadimos al data.frame de paradas la información de los barrios
+# Añadimos al data.frame de paradas la información de los distritos
 
-paradas$barrio <- lapply(paradas$geometry, function(x) establecer_localizacion(x, valenba_barrio))
+paradas$distrito <- lapply(paradas$geometry, function(x) establecer_localizacion(x, valenba_distrito))
 
 
-# Contamos cuantas paradas tiene cada barrio y lo añadimos al data.frame
-emt_barrio <- paradas %>% group_by(barrio) %>% summarise(paradas_emt = n())
+# Contamos cuantas paradas tiene cada distrito y lo añadimos al data.frame
+emt_distrito <- paradas %>% group_by(distrito) %>% summarise(paradas_emt = n())
 
-valenba_barrio <- merge(valenba_barrio, emt_barrio, by = "barrio", na.rm = TRUE, all.x = TRUE)
+valenba_distrito <- merge(valenba_distrito, emt_distrito, by = "distrito", na.rm = TRUE, all.x = TRUE)
 
 # Tratamos los posibles valores faltantes
-valenba_barrio$paradas_emt[is.na(valenba_barrio$paradas_emt)] <- 0
+valenba_distrito$paradas_emt[is.na(valenba_distrito$paradas_emt)] <- 0
 
 # Datos sobre la superficie de carril bus
 
@@ -109,18 +109,18 @@ coordenadas_metro <- subset(paradas_metro, select = c("stop_lat", "stop_lon"))
 b <- st_as_sf(coordenadas_metro, coords = c("stop_lon", "stop_lat"), crs = 4326)
 paradas_metro <- cbind(paradas_metro, b)
 
-# Añadimos al data.frame de paradas la información de los barrios
+# Añadimos al data.frame de paradas la información de los distritos
 
-paradas_metro$barrio <- lapply(paradas_metro$geometry, function(x) establecer_localizacion(x, valenba_barrio))
+paradas_metro$distrito <- lapply(paradas_metro$geometry, function(x) establecer_localizacion(x, valenba_distrito))
 
 
-# Contamos cuantas paradas tiene cada barrio y lo añadimos al data.frame
-metro_barrio <- paradas_metro %>% group_by(barrio) %>% summarise(paradas_metro = n())
+# Contamos cuantas paradas tiene cada distrito y lo añadimos al data.frame
+metro_distrito <- paradas_metro %>% group_by(distrito) %>% summarise(paradas_metro = n())
 
-valenba_barrio <- merge(valenba_barrio, metro_barrio, by = "barrio", all.x = TRUE, na.rm = TRUE)
+valenba_distrito <- merge(valenba_distrito, metro_distrito, by = "distrito", all.x = TRUE, na.rm = TRUE)
 
-# AL haber barrios sin metro se generan NA, los sustituimos por 0
-valenba_barrio$paradas_metro[is.na(valenba_barrio$paradas_metro)] <- 0
+# AL haber distritos sin metro se generan NA, los sustituimos por 0
+valenba_distrito$paradas_metro[is.na(valenba_distrito$paradas_metro)] <- 0
 
 # Datos sobre la superficie de vias de metro y tanvía
 
@@ -133,15 +133,34 @@ valenba_barrio$paradas_metro[is.na(valenba_barrio$paradas_metro)] <- 0
 
 parkings <- read_parquet("00_marc/dataTratada/info_dist.parquet")
 # Eliminación de los acentos y paso a mayúsculas
-parkings$district <- toupper(stri_trans_general(parkings$district, "Latin-ASCII"))
+parkings$distrito <- toupper(stri_trans_general(parkings$distritos, "Latin-ASCII"))
 
-prk2merge <- select(parkings, setdiff(colnames(parkings), colnames(valenba_barrio)))
+prk2merge <- select(parkings, setdiff(colnames(parkings), colnames(valenba_distrito)))
 
-valenba_barrio <- merge(valenba_barrio, prk2merge, by.x = "barrio", by.y = "district", all.x = TRUE, na.rm = TRUE)
+valenba_distrito <- merge(valenba_distrito, prk2merge, by.x = "distrito", by.y = "distritos", all.x = TRUE, na.rm = TRUE)
+
+
+
+# ADICIÓN DEL COSTE DE ALQULER POR DISTRITO
+
+alquiler <- read.csv("data/precio-alquiler-vivienda.csv", sep = ";")
+
+alquiler_dist <- select(alquiler, c("DISTRITO", "Precio_2022..Euros.m2."))
+alquiler_dist <- group_by(alquiler_dist, DISTRITO) %>% summarise(precio_alquiler_m2 = mean(Precio_2022..Euros.m2.))
+
+colnames(alquiler_dist) <- c("distrito", "precio_alquiler_m2")
+
+valenba_distrito <- merge(valenba_distrito, alquiler_dist, by = "distrito", all.x = TRUE, na.rm = TRUE)
+
+
+
+
+
 
 # GUARDADO DE LA INFORMACIÓN EN UN PARQUET
-valenba_barrio <- valenba_barrio %>% select(-geometry)
-colnames(valenba_barrio) <- c("distrito", colnames(valenba_barrio)[2:length(colnames(valenba_barrio))])
+valenba_distrito <- valenba_distrito %>% select(-geometry)
+#colnames(valenba_barrio) <- c("distrito", colnames(valenba_barrio)[2:length(colnames(valenba_barrio))])
 # Ejecutar solo cuando se quiera guardar el parquet
-write_parquet(valenba_barrio, "data/info_general_distrito.parquet")
+write_parquet(valenba_distrito, "data/info_general_distrito.parquet")
+write.csv(valenba_distrito, "data/info_general_distrito.csv", row.names = FALSE)
 

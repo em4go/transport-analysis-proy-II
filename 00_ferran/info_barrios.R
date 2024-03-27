@@ -63,7 +63,7 @@ valenba_barrio <- merge(valenba_barrio, poblacion, by = "barrio", all.x = TRUE)
 valenba_barrio$geometry <- geojson_sf(valenba_barrio$geo_shape)
 
 # datos sobre la superficie de los barrios
-valenba_barrio$superficie <- st_area(valenba_barrio$geometry)
+valenba_barrio$superficie_barrio <- st_area(valenba_barrio$geometry)
 
 # datos sobre transporte público
 emt <- read_gtfs("data/gtfs_data/transit_emt_valencia.zip")
@@ -126,12 +126,32 @@ valenba_barrio$paradas_metro[is.na(valenba_barrio$paradas_metro)] <- 0
 # Datos sobre la superficie de vias de metro y tanvía
 
 
+# DATOS SOBRE LOS PARKINGS DE CADA BARRIO
+parkings <- read_parquet("00_marc/dataTratada/info_barrio.parquet")
+# Eliminación de los acentos y paso a mayúsculas
+
+prk2merge <- select(parkings, c("barrio",setdiff(colnames(parkings), colnames(valenba_barrio))))
+
+valenba_barrio <- merge(valenba_barrio, prk2merge, by= "barrio", all.x = TRUE, na.rm = TRUE)
 
 
+#DATOS SOBRE ZONAS VERDES
+
+zonas_verdes <- read.csv("data/zonas_verdes_por_barrio.csv", sep = ";")
+
+colnames(zonas_verdes) <- c("barrio", "superficie_zonas_verdes")
+
+valenba_barrio <- merge(valenba_barrio, zonas_verdes, by = "barrio", all.x = TRUE, na.rm = TRUE)
 
 
+# ADICIÓN DEL COSTE DE ALQULER POR BARRIO
 
+alquiler <- read.csv("data/precio-alquiler-vivienda.csv", sep = ";")
 
+alq2merg <- select(alquiler, c("BARRIO", "Precio_2022..Euros.m2."))
+colnames(alq2merg) <- c("barrio", "precio_alquiler")
+
+valenba_barrio <- merge(valenba_barrio, alq2merg, by = "barrio", all.x = TRUE, na.rm = TRUE)
 
 
 
@@ -139,4 +159,4 @@ valenba_barrio$paradas_metro[is.na(valenba_barrio$paradas_metro)] <- 0
 valenba_barrio <- valenba_barrio %>% select(-geometry)
 # Ejecutar solo cuando se quiera guardar el parquet
 write_parquet(valenba_barrio, "data/info_general_barrio.parquet")
-
+write.csv(valenba_barrio, "data/info_general_barrio.csv", row.names = FALSE)
