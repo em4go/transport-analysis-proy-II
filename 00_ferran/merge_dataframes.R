@@ -8,7 +8,7 @@ library(dplyr)
 library(geojsonsf)
 library(arrow)
 
-
+# Script para crear ambos ficheros con el resumen de valenbisi por barrio y distrito
 
 find_nearest_node <- function(graph, x_given, y_given) {
   distances <- sqrt((V(grafo)$y - y_given)^2 + (V(grafo)$x - x_given)^2)
@@ -41,7 +41,7 @@ puntos_estaciones <- do.call(rbind, puntos)
 puntos_estaciones$direccion <- estaciones$Direccion
 
 
-barrios <- read.csv2("data/barrios_valencia.csv", sep = ";")
+barrios <- read.csv2("data/distritos_valencia.csv", sep = ";")
 
 polygons_barrios <- obtener_poligonos(barrios)
 
@@ -128,6 +128,7 @@ valenba_barrio$geo_shape <- sfc_geojson(valenba_barrio$geometry)
 # Guardamos el dataframe en formato parquet
 
 valenba_barrio <- valenba_barrio %>% select(-geometry)
+colnames(valenba_barrio) <- c("distrito", "metros_carril_bici", "estaciones_valenbisi", "geo_shape")
 
-write_parquet(valenba_barrio, "data/valenbisi_barrio.parquet")
+write_parquet(valenba_barrio, "data/valenbisi_distrito.parquet")
 
