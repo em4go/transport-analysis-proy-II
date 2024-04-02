@@ -1,3 +1,28 @@
+---
+title: "Obtención Zonas Verdes"
+author: "Laiqian Ji"
+date: "2024-04-02"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+En este RMarkdown se explica cómo se han obtenido los datos de zonas verdes de cada barrio.
+
+## Carga de librerías
+
+Antes de comenzar, vamos a cargar las librerías que necesitaremos para las transformaciones, etc.
+
+```{r libraries}
 library(tidyverse)
 library(ggplot2)
 library(leaflet)
@@ -7,27 +32,28 @@ library(geojsonsf)
 library(geojsonio)
 library(purrr)
 library(osmdata)
+```
 
-getwd()
+## Script
 
-# Carga el archivo CSV con los datos de las zonas verdes
-file <- "./00_lai/zonas-verdes.csv"
+Ahora, cargaremos los datos que hemos obtenido de la página web "https://valencia.opendatasoft.com/explore/embed/dataset/zonas-verdes/table/?flg=es-es&disjunctive.nivel3".
+
+```{r Carga}
+file <- "zonas-verdes.csv"
 df <- read.csv2(file=file)
 df$m2_poligon <- round(as.numeric(df$m2_poligon), 0)
-
-names(df)
-head(df)
 
 # Quito las columnas que contienen "m2zv" ya que no son de interés
 df <- df[ , !grepl("m2zv", names(df))]
 
 head(df)
+```
 
-summary(df$m2_poligon)
-names(df)
+## Obtener suma de m2 por barrio
 
-sum(df$m2_poligon)
+Para ello, utilizaremos el geo_shape de cada zona verde y sumaremos el area de esa figura geométrica.
 
+```{r string_vacio}
 # Comprobamos si hay algún string vacío en la columna 'geo_shape'
 hay_string_vacio <- any(grepl("^$", df$geo_shape))
 print(hay_string_vacio)
@@ -37,7 +63,11 @@ df <- subset(df, !grepl("^$", geo_shape))
 # Comprobamos si sigue habiendo algún string vacío en la columna 'geo_shape'
 hay_string_vacio <- any(grepl("^$", df$geo_shape))
 print(hay_string_vacio)
+```
 
+Ahora, vamos a obtener la suma de las áreas de cada polígono.
+
+```{r suma_m2}
 # Convertimos la columna 'geo_shape' a tipo 'sf'
 df$geo_shape <- map(df$geo_shape, geojson_sf)
 
@@ -48,12 +78,13 @@ df$area <- round(df$area, 0)
 
 # Redondeo a la decena por abajo
 df$area <- floor(df$area / 10) * 10
+```
 
-head(df)
-names(df)
-sum(df$area)
-sum(df$m2_poligon)
+## Clasificación por barrios
 
+Como al final queremos estudiar los barrios y no las zonas individuales, vamos a reorganizar el dataframe para que esté por barrios.
+
+```{r poligonos} 
 # Ahora, vamos a meter cada polígono en un barrio mediante su geo_point
 obtener_poligonos <- function(df){
   polygons <- lapply(barrios$geo_shape, function(x) st_read(x, quiet = TRUE))
@@ -66,16 +97,14 @@ obtener_poligonos <- function(df){
 }
 
 # Cargamos los datos de los barrios
-barrios <- read.csv2("data/barrios_valencia.csv", sep = ";")
+barrios <- read.csv2("../data/barrios_valencia.csv", sep = ";")
 polygons_barrios <- obtener_poligonos(barrios)
-polygons_barrios
+head(polygons_barrios, 5)
+```
 
-# Cuento los distintos barrios que hay
-s_barrios <- unique(polygons_barrios$Nombre)
-class(s_barrios)
+Mediante la columna geo_point_2d, vamos a asignar cada polígono a un barrio
 
-# Mediante la columna geo_point_2d, vamos a asignar cada polígono a un barrio
-
+```{r puntos}
 # Separo geo_point_2d en dos columnas: x e y.
 # Debo hacer un split 
 cords <- strsplit(df$geo_point_2d, ",")
@@ -83,8 +112,6 @@ df$x <- sapply(cords, function(x) x[1])
 df$y <- sapply(cords, function(x) x[2])
 df$x <- as.numeric(df$x)
 df$y <- as.numeric(df$y)
-
-head(df)
 
 for (zv in 1:nrow(df)) {
   y <- df$x[zv]
@@ -101,16 +128,9 @@ for (zv in 1:nrow(df)) {
   }
 }
 
-s_barrios2 <- c(unique(df$barrio))
-
-# Obtengo la diferencia de los dos vectores para saber qué barrios no tienen zonas verdes
-setdiff(s_barrios, s_barrios2)
-
 # Obtengo un data frame resumen con la suma de las áreas de las zonas verdes por barrio
 df_resumen <- df %>% group_by(barrio) %>% summarise(area = sum(area))
-sum(df_resumen$area)
 
-print(df_resumen)
+head(df_resumen)
+```
 
-# Guardo el data.frame en un csv
-write.csv2(df_resumen, "data/zonas_verdes_por_barrio.csv", row.names = FALSE)
