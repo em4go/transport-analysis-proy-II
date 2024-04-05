@@ -33,6 +33,8 @@ obtener_poligonos <- function(df){
 
 estaciones <- read.csv2("00_ferran/estaciones_valenbisi.csv")
 
+estaciones <- estaciones %>% filter(estaciones$Activo)
+
 
 puntos <- lapply(estaciones$geo_shape, function(x) st_read(x, quiet = TRUE))
 
@@ -41,7 +43,7 @@ puntos_estaciones <- do.call(rbind, puntos)
 puntos_estaciones$direccion <- estaciones$Direccion
 
 
-barrios <- read.csv2("data/distritos_valencia.csv", sep = ";")
+barrios <- read.csv2("data/barrios_valencia.csv", sep = ";")
 
 polygons_barrios <- obtener_poligonos(barrios)
 
@@ -119,16 +121,21 @@ metros_carril <- aux %>% group_by(barrio) %>% summarise(metros_carril = sum(long
 
 valenba_barrio <- merge(metros_carril, num_estaciones, by = "barrio", all = TRUE)
 
-valenba_barrio[is.na(valenba_barrio)] <- 0
+
 
 valenba_barrio <- merge(valenba_barrio, polygons_barrios, by = "barrio", all.y = T)
 
 valenba_barrio$geo_shape <- sfc_geojson(valenba_barrio$geometry)
 
+
+
+
+
+
 # Guardamos el dataframe en formato parquet
 
 valenba_barrio <- valenba_barrio %>% select(-geometry)
-colnames(valenba_barrio) <- c("distrito", "metros_carril_bici", "estaciones_valenbisi", "geo_shape")
+colnames(valenba_barrio) <- c("barrio", "metros_carril_bici", "estaciones_valenbisi", "geo_shape")
 
-write_parquet(valenba_barrio, "data/valenbisi_distrito.parquet")
+write_parquet(valenba_barrio, "data/valenbisi_barrio.parquet")
 

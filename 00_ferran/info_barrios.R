@@ -24,6 +24,16 @@ establecer_localizacion <- function(punto, info_poligonos) {
   }
 }
 
+obtener_poligonos <- function(df){
+  polygons <- lapply(distritos$geo_shape, function(x) st_read(x, quiet = TRUE))
+  
+  # Combina todos los objetos sf en un solo objeto sf
+  poligonos <- do.call(rbind, polygons)
+  
+  poligonos$Nombre <- distritos$Nombre
+  return(poligonos)
+}
+
 
 
 # vamos a crear un dataframe con la información de todos los barrios de valencia,
@@ -51,7 +61,12 @@ poblacion$barrio <- toupper(sapply(strsplit(stri_trans_general(poblacion$X,"Lati
 
 poblacion <- poblacion %>% select(-c(X, X.1, X.2, X.3, X.4, X.5, X.6, X.7, X.8))
 
-colnames(poblacion) <- c("Total", "0-15 años", "16-64 años", "65 o más", "barrio")
+colnames(poblacion) <- c("Total_poblacion", "0-15 años", "16-64 años", "65 o más", "barrio")
+
+poblacion$Total_poblacion <- as.numeric(poblacion$Total_poblacion)
+poblacion$`0-15 años` <- as.numeric(poblacion$`0-15 años`)
+poblacion$`16-64 años` <- as.numeric(poblacion$`16-64 años`)
+poblacion$`65 o más` <- as.numeric(poblacion$`65 o más`)
 
 valenba_barrio <- merge(valenba_barrio, poblacion, by = "barrio", all.x = TRUE)
 
@@ -121,7 +136,8 @@ metro_barrio <- paradas_metro %>% group_by(barrio) %>% summarise(paradas_metro =
 valenba_barrio <- merge(valenba_barrio, metro_barrio, by = "barrio", all.x = TRUE, na.rm = TRUE)
 
 # AL haber barrios sin metro se generan NA, los sustituimos por 0
-valenba_barrio$paradas_metro[is.na(valenba_barrio$paradas_metro)] <- 0
+
+#### valenba_barrio$paradas_metro[is.na(valenba_barrio$paradas_metro)] <- 0
 
 # Datos sobre la superficie de vias de metro y tanvía
 
@@ -152,6 +168,27 @@ alq2merg <- select(alquiler, c("BARRIO", "Precio_2022..Euros.m2."))
 colnames(alq2merg) <- c("barrio", "precio_alquiler")
 
 valenba_barrio <- merge(valenba_barrio, alq2merg, by = "barrio", all.x = TRUE, na.rm = TRUE)
+
+
+# ADICIÓN DEL DISTRITO DE CADA BARRIO
+aux_barrios <- read.csv("data/barrios_valencia.csv", sep = ";")
+aux_barrios <- aux_barrios %>% select(c("Nombre", "Codigo.distrito"))
+colnames(aux_barrios) <- c("barrio", "Codigo.distrito")
+
+aux_distritos <- read.csv("data/distritos_valencia.csv", sep = ";")
+aux_distritos <- aux_distritos %>% select(c("Nombre", "Código.distrito"))
+aux_distritos <- unique(aux_distritos)
+colnames(aux_distritos) <- c("distrito", "Codigo.distrito")
+
+barrio_distrito <- aux_barrios %>% left_join(aux_distritos, by = "Codigo.distrito")
+barrio_distrito <- barrio_distrito %>% select(c("barrio", "distrito"))
+
+valenba_barrio <- merge(valenba_barrio, barrio_distrito, by = "barrio", all.x = TRUE, na.rm = TRUE)
+valenba_barrio$distrito <- as.factor(valenba_barrio$distrito)
+
+
+
+
 
 
 
