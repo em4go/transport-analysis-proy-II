@@ -1,0 +1,156 @@
+---
+title: "Análisis Exploratorio de los barrios" 
+author: "Ferran Aragó"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(dplyr)
+library(ggplot2)
+library(sf)
+library(arrow)
+library(geojsonsf)
+library(gridExtra)
+```
+
+# Exploración de las estructuras de datos
+
+Los datos de los que se compone nuestro dataset son los siguientes:
+
+- `barrio`: Nombre del barrio. Será una variable de tipo carácter.
+
+- `estaciones_valenbisi`: Número de estaciones de Valenbisi en el barrio. Será una variable de tipo numérica discreta.
+
+- `geo_shape`: Forma geográfica del barrio. Será una variable de tipo geoJson, que se puede transformar a un objeto de tipo POLYGON del paquete sf.
+
+- `Total_población`: Número total de habitantes en el barrio. Será una variable de tipo numérica discreta. También se incluye la población total separada por rangos de edad.
+
+- `superficie_barrio`: Superficie del barrio en m^2. Será una variable de tipo numérica continua.
+
+- `paradas_emt`: Número de paradas de la EMT en el barrio. Será una variable de tipo numérica discreta.
+
+- `paradas_metro`: Número de paradas de metro en el barrio. Será una variable de tipo numérica discreta.
+
+- `plazas_mob`: Número de plazas de aparcamiento destinadas a gente con movilidad reducida. Será una variable de tipo numérica discreta.
+
+- `paradas_taxis`: Número de paradas de taxis en el barrio. Será una variable de tipo numérica discreta.
+
+- `plazas_parkings`: Número de plazas de aparcamiento en el barrio. Será una variable de tipo numérica discreta.
+
+- `superficie_zonas_verdes`_ Superficie de zonas verdes en el barrio en m^2. Será una variable de tipo numérica continua.
+
+- `precio_alquiler`: Precio medio del alquiler por metro cuadrado en el barrio. Será una variable de tipo numérica continua.
+
+- `distrito`: Nombre del distrito al que pertenece el barrio. Será una variable de tipo categórica, ya que hay 19 distritos en total.
+
+
+# Estadísticas descriptivas
+
+```{r estadisticas_descriptivas}
+df <- read_parquet("../data/info_general_barrio.parquet")
+
+summary(df)
+```
+
+Del resumen estadístico extraído, podemos observar la existencia de dos variables que tienen una gran cantidad de valores faltantes, `paradas_metro` y `plazas_parkings`. Esto se debe a que ambas están situadas de forma que se distribuyan por toda la ciudad sin haber una gran densidad de ambas, por ello, se tiene que muchos barrios no tengan ninguna de las dos.
+
+Es posible que se desee no contar con ninguna de las dos variables, ya que, al tener un gran número de valores faltantes, puede afectar al análisis. No obstante, estos valores faltantes no son un error ni dejan de ser significativos, ya que ambos, tanto las paradas de metro como las plazas de parkings, están situados de forma estratégica ocupando los lugares en los que vayan a tener más afluencia de gente.
+
+# Análisis de valores faltantes
+
+Puesto que el dataset con el que vamos a trabajar se ha obtenido mediante la comprobación geográfica de la localización de los distintos elementos a analizar y estableciendo así el número de elementos que tiene cada barrio y que los archivos consultados para ello son extraídos de fuentes oficiales, no se esperan valores atípicos que impliquen la necesidad de no tenerlos en cuenta.
+
+Por ello, vamos a centrar nuestro esfuerzo en la búsqueda de valores faltantes, ya que es posible que hayan variables que se vena reducidas a muy pocos barrios o barrios que no tengan información de gran cantidad de las variables incluidas.
+
+Para tener en cuenta los valores faltantes no vamos a utilizar las variables `paradas_metro` ni `plazas_parkings`, ya que como hemos comentado anteriormente, es normal que haya barrios que no tengan ninguna de las dos. Y tampoco los rangos de edad de la población, ya que la importante es la población total.
+
+## Número de barrios con valores faltantes por distrito
+
+Tras realizar un primer vistazo al dataset que habíamos obtenido, quisimos comprobar si los valores faltantes se concentraban en gran parte en barrios que tuviesen una característica en común, como por ejemplo, pertenecer a un mismo distrito. Para ello, vamos a comprobar cuántos barrios de cada distrito tienen valores faltantes en alguna de las variables.
+
+```{r max_faltantes}
+# Vamos a comprobar si hay valores faltantes en el dataset
+
+faltantes <- df %>% group_by(distrito) %>% summarise_all(~sum(is.na(.)))
+# Quitamos la poblaciónpor rangos de edad, ya que son variables prescindibles
+faltantes <- faltantes %>% select(-c("0-15 años", "16-64 años", "65 o más", "paradas_metro", "plazas_parkings"))
+
+max_faltantes <- cbind(faltantes %>% select(distrito), n_faltantes = faltantes %>% select(-distrito) %>% apply(1, max))
+max_faltantes <- max_faltantes %>% arrange(distrito) # Para ordenarlo por distrito
+
+ggplot(max_faltantes, aes(x = distrito, y = n_faltantes)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Número máximo de valores faltantes por distrito",
+       x = "Distrito",
+       y = "Número de valores faltantes")
+```
+
+En este gráfico se recoge el número máximo de barrios con valores faltantes para una misma variable por distrito, es decir, para cada distrito, la variable con mayor número de barrios de dicho distrito con valores faltantes.
+
+Visualizando este primer gráfico, hay dos distritos que parecen tener un mayor número de barrios con valores faltantes en una variable a comparación del resto. Estos distritos son `Poblats de nord` y `Poblats del sud`. Tal vez sea porque, al situarse en los exteriores de la ciudad, no tiene tantos servicios como el resto de distritos. Pero antes de establecer que estos dos distritos son los que más barrios tienen con valores faltantes, vamos a comparar los valores extraídos con el total de barrios del distrito y así comprobar si realmente es un valor significativo, ya que podrían ser distritos con un número muy elevado de barrios y por eso tener mayor número de barrios con faltantes.
+
+```{r porcentaje_faltantes}
+num_barrios <- df %>% group_by(distrito) %>% summarise(n = n())
+num_barrios <- num_barrios %>% arrange(distrito)
+
+max_faltantes <- cbind(max_faltantes, porcentaje_barrios = max_faltantes$n_faltantes / num_barrios$n * 100)
+
+ggplot(max_faltantes, aes(x = distrito, y = porcentaje_barrios)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Porcentaje de barrios con valores faltantes por distrito",
+       x = "Distrito",
+       y = "Número de valores faltantes")
+```
+
+Tras realizar este segundo gráfico, el cual nos muestra que porcentaje de barrios de cada distrito tienen valores faltantes, confirmamos que los distritos `Poblats de nord` y `Poblats del sud` son los que tienen un mayor número de barrios con valores faltantes para una variable concreta, pero, a pesar de no resultar significativo en el anterior gráfico, el distrito `Poblats de l'oest` también tiene valores faltantes en todos sus barrios. 
+
+
+## Número de variables con valores faltantes por distrito
+
+Por ello, es posible que se quieran eliminar estos barrios de nuestro dataset, ya que al no tener información de gran parte de las variables, no aportarán información relevante.
+
+Vamos a centrarnos en estos tres distritos y a comprobar si realmente hay una gran cantidad de variables con valores faltantes en sus barrios. También realizaremos el gráfico para el distrito `Rascanya`, ya que es el siguiente distrito con un gran porcentaje.
+
+
+```{r n_var_faltantes}
+faltantes <- faltantes[faltantes$distrito %in% c("POBLATS DEL NORD", "POBLATS DEL SUD", "POBLATS DE L'OEST", "RASCANYA"),]
+
+n_var_faltantes <- faltantes %>% summarise(n = apply(faltantes, 1, function(x) sum(x > 0)-1)) %>% cbind(distrito = faltantes$distrito, var_with_null = .)
+
+ggplot(n_var_faltantes, aes(x = distrito, y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Número de variables con valores faltantes por distrito",
+       x = "Distrito",
+       y = "Número de variables con valores faltantes")
+```
+
+Teniendo en cuenta que el máximo de variables que estamos considerando es de 12, el distrito de `Poblats del nord` muestra valores faltantes en al menos un barrio para prácticamente todas las variables. Por otro lado, `Poblats del sud` tiene una alta cantidad de variables con valores faltantes pero esta no supera la mitad de las variables, mientras que en los distritos `Rascanya` y `Poblats de l'oest` hay una menor cantidad de variables con valores faltantes.
+
+Con esto datos, podríamos plantearnos eliminar los barrios del distrito `Poblats del nord` de nuestro dataset, ya que no aportarán información relevante al tener valores faltantes en prácticamente todas las variables. Además, viendo las variables en las que se encuentran los valores faltantes, en algunas de ellas resulta ser más falta de información que no falta de servicios, por lo que podría afectar al análisis.
+
+
+
+
+
+
+
+
+
+
+
+
+
