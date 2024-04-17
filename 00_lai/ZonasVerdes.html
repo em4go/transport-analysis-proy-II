@@ -1500,9 +1500,8 @@ font-size: 0.95em;
 
 <p>En este RMarkdown se explica cómo se han obtenido los datos de zonas
 verdes de cada barrio.</p>
-<div id="carga-de-librerías" class="section level2" number="0.1">
-<h2><span class="header-section-number">0.1</span> Carga de
-librerías</h2>
+<div id="carga-de-librerías" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Carga de librerías</h1>
 <p>Antes de comenzar, vamos a cargar las librerías que necesitaremos
 para las transformaciones, etc.</p>
 <pre class="r"><code>library(tidyverse)
@@ -1515,8 +1514,8 @@ library(geojsonio)
 library(purrr)
 library(osmdata)</code></pre>
 </div>
-<div id="script" class="section level2" number="0.2">
-<h2><span class="header-section-number">0.2</span> Script</h2>
+<div id="script" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Script</h1>
 <p>Ahora, cargaremos los datos que hemos obtenido de la página web “<a href="https://valencia.opendatasoft.com/explore/embed/dataset/zonas-verdes/table/?flg=es-es&amp;disjunctive.nivel3" class="uri">https://valencia.opendatasoft.com/explore/embed/dataset/zonas-verdes/table/?flg=es-es&amp;disjunctive.nivel3</a>”.</p>
 <pre class="r"><code>file &lt;- &quot;zonas-verdes.csv&quot;
 df &lt;- read.csv2(file=file)
@@ -1548,9 +1547,9 @@ head(df)</code></pre>
 ## 5 Zonas verdes Jardines 14       1350
 ## 6 Zonas verdes Jardines 15       1927</code></pre>
 </div>
-<div id="obtener-suma-de-m2-por-barrio" class="section level2" number="0.3">
-<h2><span class="header-section-number">0.3</span> Obtener suma de m2
-por barrio</h2>
+<div id="obtener-suma-de-m2-por-barrio" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Obtener suma de m2 por
+barrio</h1>
 <p>Para ello, utilizaremos el geo_shape de cada zona verde y sumaremos
 el area de esa figura geométrica.</p>
 <pre class="r"><code># Comprobamos si hay algún string vacío en la columna &#39;geo_shape&#39;
@@ -1575,9 +1574,9 @@ df$area &lt;- round(df$area, 0)
 # Redondeo a la decena por abajo
 df$area &lt;- floor(df$area / 10) * 10</code></pre>
 </div>
-<div id="clasificación-por-barrios" class="section level2" number="0.4">
-<h2><span class="header-section-number">0.4</span> Clasificación por
-barrios</h2>
+<div id="clasificación-por-barrios" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> Clasificación por
+barrios</h1>
 <p>Como al final queremos estudiar los barrios y no las zonas
 individuales, vamos a reorganizar el dataframe para que esté por
 barrios.</p>
