@@ -7,7 +7,6 @@ output: html_document
 
 Para realizar esta recogida de información, es necesario usar las siguientes librerías:
 
-leaflet: Para la creación de mapas ????
 dplyr: Para la manipulación de datos
 tidyr: Para la manipulación de datos, creación de tablas
 sf: Para la manipulación de datos geográficos, determinar que puntos estan dentro de los barrios
@@ -17,7 +16,6 @@ knir: Para mostrar la información de una forma más visual.
 
 
 ```{r}
-library(leaflet)
 library(dplyr)
 library(tidyr)
 library(sf)
@@ -32,13 +30,13 @@ library(ggplot2)
 Todos los datos son obtenidos de la página de datos abiertos del Ayuntamiento de Valècia En este caso, se han descargado los datos de información general de los barrios de València, los datos de las plazas de aparcamiento, los datos de las paradas de taxis y los datos de la red de movilidad reducida, más concretamente de las plazas de aparcamiento.
 
 ```{r}
-data_barrios <- read.csv2("./data/barrios_valencia.csv", sep = ";")
+data_barrios <- read.csv2("../data/barrios_valencia.csv", sep = ";")
 
-data_mob_red <- read.csv("./00_marc/dataTratada/plazas_mobred_geo.csv", sep = ",")
+data_mob_red <- read.csv("../00_marc/dataTratada/plazas_mobred_geo.csv", sep = ",")
   
-data_parkings <- read.csv("./00_marc/dataTratada/dataParkings.csv", sep = ",")
+data_parkings <- read.csv("../00_marc/dataTratada/dataParkings.csv", sep = ",")
 
-data_taxis <- read.csv2("./00_marc/dataPre/data_taxis.csv", sep = ";")
+data_taxis <- read.csv2("../00_marc/dataPre/data_taxis.csv", sep = ";")
 ```
 
 # Tratamiento de datos
