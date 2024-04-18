@@ -2,20 +2,27 @@
 title: "Información de Barrios"
 author: "Marc Hurtado"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
 ---
 
 Para realizar esta recogida de información, es necesario usar las siguientes librerías:
 
-dplyr: Para la manipulación de datos
-tidyr: Para la manipulación de datos, creación de tablas
-sf: Para la manipulación de datos geográficos, determinar que puntos estan dentro de los barrios
-jsonlite: Para la manipulación de datos
-arrow: Para la manipulación de datos, en nuestro caso para la lectura de ficheros parquet
-knir: Para mostrar la información de una forma más visual. 
+`dplyr`: Para la manipulación de datos
+`tidyr`: Para la manipulación de datos, creación de tablas
+`sf`: Para la manipulación de datos geográficos, determinar que puntos estan dentro de los barrios
+`jsonlite`: Para la manipulación de datos
+`arrow`: Para la manipulación de datos, en nuestro caso para la lectura de ficheros parquet
+`knir`: Para mostrar la información de una forma más visual. 
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(dplyr)
 library(tidyr)
 library(sf)
@@ -41,7 +48,7 @@ data_taxis <- read.csv2("../00_marc/dataPre/data_taxis.csv", sep = ";")
 
 # Tratamiento de datos
 
-En primer lugar, separamos la columna geo_point_2d en dos columnas, Latitude y Longitude, para poder trabajar con ellas. Para determinar los puntos por las dos coordenadas y no como un objeto geojson.
+En primer lugar, separamos la columna *geo_point_2d* en dos columnas, *Latitude* y *Longitude*, para poder trabajar con ellas. Para determinar los puntos por las dos coordenadas y no como un objeto geojson.
 
 ```{r}
 data_taxis <- tidyr::separate(data_taxis, geo_point_2d, into = c("Latitude", "Longitude"), sep = ",")
@@ -74,7 +81,7 @@ poligons_barrios
 
 ## Paradas de Movilidad Reducida
 
-Ahora, realizamos un bucle que recorra todas las filas de la tabla de plazas de aparcamiento para personas de movilidad reducida (ya que cada fila es un lugar donde hay plazas) y determine en que barrio se encuentra cada una de ellas. Para ello, utilizamos la función st_within de la librería sf, que nos permite determinar si un punto está dentro de un polígono.
+Ahora, realizamos un bucle que recorra todas las filas de la tabla de plazas de aparcamiento para personas de movilidad reducida (ya que cada fila es un lugar donde hay plazas) y determine en que barrio se encuentra cada una de ellas. Para ello, utilizamos la función *st_within* de la librería *sf*, que nos permite determinar si un punto está dentro de un polígono.
 
 ```{r}
 plazas <- data.frame()
@@ -125,6 +132,7 @@ Repetimos el mismo procedimiento pero ahora para los parkings públicos.
 
 ```{r}
 parkings <- data.frame()
+
 for (pl in 1:nrow(data_parkings)) {
   point <- st_point(c(as.numeric(data_parkings$Longitude[pl]), as.numeric(data_parkings$Latitude[pl])), dim = "XY")
   #longitud y latitud porque los poligonos de los barrios estan en ese orden
@@ -170,6 +178,7 @@ Y por último, para las paradas de taxis.
 
 ```{r}
 taxis <- data.frame()
+
 for (pl in 1:nrow(data_taxis)) {
   point <- st_point(c(as.numeric(data_taxis$Longitude[pl]), as.numeric(data_taxis$Latitude[pl])), dim = "XY")
   #longitud y latitud porque los poligonos de los barrios estan en ese orden
@@ -218,16 +227,16 @@ info_barrio <- data.frame('barrio' = data_barrios$Nombre)
 info_barrio <- merge(info_barrio, resultado_plazas_mob, by = "barrio", all.x = TRUE)
 info_barrio <- merge(info_barrio, resultado_taxis, by = "barrio", all.x = TRUE)
 info_barrio <- merge(info_barrio, resultado_parkings, by = "barrio", all.x = TRUE)
+
 kable(info_barrio)
 ```
 
 # Guardado de la información
 
-Para guardar la información, empleamos el formato csv y parquet. Este último es un formato de almacenamiento de datos columnar, que permite una lectura y escritura más rápida de los datos, además de guardar el esquema de los datos.
-
-
+Para guardar la información, empleamos el formato `csv` y `parquet.` Este último es un formato de almacenamiento de datos columnar, que permite una lectura y escritura más rápida de los datos, además de guardar el esquema de los datos.
 
 ```{r}
-write.csv(info_barrio, file = "./00_marc/dataTratada/info_barrio.csv", row.names = FALSE)
-write_parquet(info_barrio,"./00_marc/dataTratada/info_barrio.parquet")
+write.csv(info_barrio, file = "./dataTratada/info_barrio.csv", row.names = FALSE)
+
+write_parquet(info_barrio,"./dataTratada/info_barrio.parquet")
 ```
