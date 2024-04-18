@@ -50,7 +50,7 @@ Aquí se establecen las funciones que se han utilizado para mejorar la eficienci
 
 ```{r funciones}
 establecer_localizacion <- function(punto, info_poligonos) {
-  # Vamos a crear una función para que devuelva directamente el poligono al que
+  # Vamos a crear una función para que devuelva directamente el polígono al que
   # pertenece un punto
   b <- unlist(st_within(punto, info_poligonos$geometry))
   if (length(b) == 0) {
@@ -73,7 +73,7 @@ obtener_poligonos <- function(df){
 
 ## Adición de la población
 
-Podemos ver que se toma como base el fichero de tipo parquet `valenbisi_barrio`. En este fichero ya se recogen el número de estaciones de valenbisi para cada barrrio, al igual que el número de metros de carril bici del que dispone, el polígono que representa cada barrio, por si es necesario para obtener el barrio al que pertenece un objeto y para conocer la superficie del barrio.
+Podemos ver que se toma como base el fichero de tipo parquet `valenbisi_barrio`. En este fichero ya se recogen el número de estaciones de valenbisi para cada barrio, al igual que el número de metros de carril bici del que dispone, el polígono que representa cada barrio, por si es necesario para obtener el barrio al que pertenece un objeto y para conocer la superficie del barrio.
 
 Los datos a cerca de la localización de las estaciones de valenbisi se han obtenido de la pagina web de datos abiertos de Valencia. En cambio, los metros de carril bici se han calculado mediante el uso del grafo obtenido de openstreetmap, mediante la librería `osmdata`.
 
@@ -81,7 +81,7 @@ Posteriormente se procede a añadirle la población de cada barrio. En este caso
 
 
 ```{r población}
-# Lectura del fichero con información del valenbici por barrios de valencia
+# Lectura del fichero con información del valenbisi por barrios de valencia
 valenba_barrio <- read_parquet("../data/valenbisi_barrio.parquet")
 
 # Fichero con los datos de población por barrio
@@ -113,7 +113,7 @@ valenba_barrio <- merge(valenba_barrio, poblacion, by = "barrio", all.x = TRUE)
 
 ## Adición de la superficie del barrio
 
-Esto se realiza de forma rápida. Transfrmamos el geoJson en un objeto de tipo `sf` y calculamos la superficie de cada barrio.
+Esto se realiza de forma rápida. Transformamos el geoJson en un objeto de tipo `sf` y calculamos la superficie de cada barrio.
 
 ```{r superficie}
 valenba_barrio$geometry <- geojson_sf(valenba_barrio$geo_shape)
