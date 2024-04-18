@@ -6,7 +6,7 @@ if (length(.lib[!.inst])>0) install.packages(.lib[!.inst])
 lapply(.lib, require, character.only=TRUE)
 
 
-coords_bb <- getbb("Calle músico martínez coll, 2. Valencia, Spain")
+coords_bb <- getbb("Plaza de toros de Valencia")
 rownames(coords_bb)
 coords_bb["x", ]
 
@@ -15,7 +15,7 @@ coords <- list(x=mean(coords_bb["x", ]), y=mean(coords_bb["y", ]))
 coords
 
 # Cargar los datos
-grafo <- read_graph("./data/networks_data/valencia_walk.graphml", format = "graphml")
+grafo <- read_graph("./data/networks_data/valencia_drive.graphml", format = "graphml")
 
 V(grafo)$x <- as.numeric(V(grafo)$x)
 V(grafo)$y <- as.numeric(V(grafo)$y)
@@ -56,8 +56,14 @@ nodos_cercanos <- V(grafo)[which(distancias <= 300)]
 
 caminos_cercanos <- shortest_paths(grafo, start_node, nodos_cercanos, weights = E(grafo)$length)
 
+# subgrafo de los caminos más cercanos
 
 subgrafo <- induced_subgraph(grafo, nodos_cercanos)
+
+# quiero que en el subgrafo estén solo las aristas de los nodos más cercanos
+
+
+
 
 edge_attr_names(subgrafo)
 E(subgrafo)$osmid
@@ -88,3 +94,14 @@ m <- m %>% addCircleMarkers(lng = start_node$x, lat = start_node$y, radius = 5, 
 m
 
 
+head_edge <- V(grafo)[edge[1]]
+tail_edge <- V(grafo)[edge[2]]
+
+edge_list <- as_edgelist(grafo)
+edge_list
+
+knn_grafo <- knn(grafo)
+knn_grafo$knnk
+
+
+neighbors(grafo, 1, mode = "all")
