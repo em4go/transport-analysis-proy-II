@@ -82,9 +82,11 @@ Tras realizar un primer vistazo al dataset que habíamos obtenido, quisimos comp
 
 faltantes <- df %>% group_by(distrito) %>% summarise_all(~sum(is.na(.)))
 # Quitamos la poblaciónpor rangos de edad, ya que son variables prescindibles
-faltantes <- faltantes %>% select(-c("0-15 años", "16-64 años", "65 o más", "paradas_metro", "plazas_parkings"))
+faltantes <- faltantes %>% select(-c("0-15 años", "16-64 años", "65 o más",
+                                     "paradas_metro", "plazas_parkings"))
 
-max_faltantes <- cbind(faltantes %>% select(distrito), n_faltantes = faltantes %>% select(-distrito) %>% apply(1, max))
+max_faltantes <- cbind(faltantes %>% select(distrito), n_faltantes = faltantes %>% 
+                         select(-distrito) %>% apply(1, max))
 max_faltantes <- max_faltantes %>% arrange(distrito) # Para ordenarlo por distrito
 
 ggplot(max_faltantes, aes(x = distrito, y = n_faltantes)) +
@@ -104,7 +106,8 @@ Visualizando este primer gráfico, hay dos distritos que parecen tener un mayor 
 num_barrios <- df %>% group_by(distrito) %>% summarise(n = n())
 num_barrios <- num_barrios %>% arrange(distrito)
 
-max_faltantes <- cbind(max_faltantes, porcentaje_barrios = max_faltantes$n_faltantes / num_barrios$n * 100)
+max_faltantes <- cbind(max_faltantes, porcentaje_barrios =
+                         max_faltantes$n_faltantes / num_barrios$n * 100)
 
 ggplot(max_faltantes, aes(x = distrito, y = porcentaje_barrios)) +
   geom_bar(stat = "identity", fill = "skyblue") +
@@ -126,9 +129,11 @@ Vamos a centrarnos en estos tres distritos y a comprobar si realmente hay una gr
 
 
 ```{r n_var_faltantes}
-faltantes <- faltantes[faltantes$distrito %in% c("POBLATS DEL NORD", "POBLATS DEL SUD", "POBLATS DE L'OEST", "RASCANYA"),]
+faltantes <- faltantes[faltantes$distrito %in% c("POBLATS DEL NORD",
+                            "POBLATS DEL SUD", "POBLATS DE L'OEST", "RASCANYA"),]
 
-n_var_faltantes <- faltantes %>% summarise(n = apply(faltantes, 1, function(x) sum(x > 0)-1)) %>% cbind(distrito = faltantes$distrito, var_with_null = .)
+n_var_faltantes <- faltantes %>% summarise(n = apply(faltantes, 1, 
+  function(x) sum(x > 0)-1)) %>% cbind(distrito = faltantes$distrito, var_with_null = .)
 
 ggplot(n_var_faltantes, aes(x = distrito, y = n)) +
   geom_bar(stat = "identity", fill = "skyblue") +

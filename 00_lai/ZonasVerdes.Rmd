@@ -15,10 +15,9 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
-
 En este RMarkdown se explica cómo se han obtenido los datos de zonas verdes de cada barrio.
 
-## Carga de librerías
+# Carga de librerías
 
 Antes de comenzar, vamos a cargar las librerías que necesitaremos para las transformaciones, etc.
 
@@ -34,7 +33,7 @@ library(purrr)
 library(osmdata)
 ```
 
-## Script
+# Script
 
 Ahora, cargaremos los datos que hemos obtenido de la página web "https://valencia.opendatasoft.com/explore/embed/dataset/zonas-verdes/table/?flg=es-es&disjunctive.nivel3".
 
@@ -49,7 +48,7 @@ df <- df[ , !grepl("m2zv", names(df))]
 head(df)
 ```
 
-## Obtener suma de m2 por barrio
+# Obtener suma de m2 por barrio
 
 Para ello, utilizaremos el geo_shape de cada zona verde y sumaremos el area de esa figura geométrica.
 
@@ -80,7 +79,7 @@ df$area <- round(df$area, 0)
 df$area <- floor(df$area / 10) * 10
 ```
 
-## Clasificación por barrios
+# Clasificación por barrios
 
 Como al final queremos estudiar los barrios y no las zonas individuales, vamos a reorganizar el dataframe para que esté por barrios.
 
