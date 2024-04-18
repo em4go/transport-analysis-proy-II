@@ -188,7 +188,38 @@ valenba_barrio$distrito <- as.factor(valenba_barrio$distrito)
 
 
 
+amenity <- read_parquet("00_hervas/sitios_interes/amenity.parquet")
 
+colnames(amenity) <- c("barrio", "amenity")
+
+valenba_barrio <- merge(valenba_barrio, amenity, by= "barrio", all.x = TRUE, na.rm = TRUE)
+
+
+
+
+monuments <- read_parquet("00_hervas/sitios_interes/monuments.parquet")
+
+colnames(monuments) <- c("barrio", "monuments")
+
+valenba_barrio <- merge(valenba_barrio, monuments, by= "barrio", all.x = TRUE, na.rm = TRUE)
+
+
+
+
+shop <- read_parquet("00_hervas/sitios_interes/shop.parquet")
+
+colnames(shop) <- c("barrio", "shop")
+
+valenba_barrio <- merge(valenba_barrio, shop, by= "barrio", all.x = TRUE, na.rm = TRUE)
+
+
+
+
+sport <- read_parquet("00_hervas/sitios_interes/sport.parquet")
+
+colnames(sport) <- c("barrio", "sport")
+
+valenba_barrio <- merge(valenba_barrio, sport, by= "barrio", all.x = TRUE, na.rm = TRUE)
 
 
 

@@ -35,9 +35,9 @@ Para la creación del dataset que caracteriza cada uno de los barrios de Valenci
 
 Cada uno de estos datos se debe comprobar a que barrio pertenecía para así realizar el conteo para cada uno de los barrios y caracterizarlos. Esta función se ha realizado de dos formas: 
 
-1. Es la más sencilla y consiste en concatener directamente ambos datasets con la infomación deseada ya que en ambos se dispone de la información asociada a cada uno de los barrios. Se realiza mediante la función `merge` de R.
+1. Es la más sencilla y consiste en concatenar directamente ambos datasets con la información deseada ya que en ambos se dispone de la información asociada a cada uno de los barrios. Se realiza mediante la función `merge` de R.
 
-2. Esta otra resulta más complicada y se daba cuando no se dispone de la inforamción relativa a cada barrio sino del objeto de análisis y su geolocalización. En este caso se verifica a que barrio pertenece comprobando dentro de que polígono de cada barrio se encuentra el objeto.
+2. Esta otra resulta más complicada y se daba cuando no se dispone de la información relativa a cada barrio sino del objeto de análisis y su localización. En este caso se verifica a que barrio pertenece comprobando dentro de que polígono de cada barrio se encuentra el objeto.
 
 Para realizar esto se han generado distintos scripts ya que se han subdividido las tareas de obtención de los datos y, posteriormente, se unen cada uno de los resultados de cada script en un dataset que genera el script descrito en este documento. En todos los casos se ha utilizado las dos técnicas comentadas anteriormente.
 
@@ -77,15 +77,15 @@ Podemos ver que se toma como base el fichero de tipo parquet `valenbisi_barrio`.
 
 Los datos a cerca de la localización de las estaciones de valenbisi se han obtenido de la pagina web de datos abiertos de Valencia. En cambio, los metros de carril bici se han calculado mediante el uso del grafo obtenido de openstreetmap, mediante la librería `osmdata`.
 
-Posteriormente se prodece a añadirle la población de cada barrio. En este caso, se utiliza la primera técnica comentada, ya que si se dispone de la información ya separada por barrios.
+Posteriormente se procede a añadirle la población de cada barrio. En este caso, se utiliza la primera técnica comentada, ya que si se dispone de la información ya separada por barrios.
 
 
 ```{r población}
 # Lectura del fichero con información del valenbici por barrios de valencia
-valenba_barrio <- read_parquet("data/valenbisi_barrio.parquet")
+valenba_barrio <- read_parquet("../data/valenbisi_barrio.parquet")
 
 # Fichero con los datos de población por barrio
-poblacion <- read.csv2("00_hervas/Barrios_Pob.csv", sep = ";", header = TRUE, encoding = "UTF-8")
+poblacion <- read.csv2("../00_hervas/Barrios_Pob.csv", sep = ";", header = TRUE, encoding = "UTF-8")
 
 # Eliminación de los distritos
 poblacion <- poblacion %>% filter(!grepl("^$",Total))
@@ -129,7 +129,7 @@ En este apartado se muestra como se han añadido el número de paradas de bus, m
 
 ```{r transporte_publico}
 # datos sobre transporte público
-emt <- read_gtfs("data/gtfs_data/transit_emt_valencia.zip")
+emt <- read_gtfs("../data/gtfs_data/transit_emt_valencia.zip")
 
 paradas <- emt$stops
 paradas$stop_lat <- as.numeric(paradas$stop_lat)
@@ -154,7 +154,7 @@ valenba_barrio <- merge(valenba_barrio, emt_barrio, by = "barrio", na.rm = TRUE,
 
 # Datos sobre el metro y tranvía
 
-metro <- read_gtfs("data/gtfs_data/transit_metrovalencia.zip")
+metro <- read_gtfs("../data/gtfs_data/transit_metrovalencia.zip")
 
 paradas_metro <- metro$stops
 
@@ -185,7 +185,7 @@ Como se ha comentado al inicio del documento, se han dividido la obtención de d
 
 ```{r parkings_zonas_verdes}  
 # DATOS SOBRE LOS PARKINGS DE CADA BARRIO
-parkings <- read_parquet("00_marc/dataTratada/info_barrio.parquet")
+parkings <- read_parquet("../00_marc/dataTratada/info_barrio.parquet")
 # Eliminación de los acentos y paso a mayúsculas
 
 prk2merge <- select(parkings, c("barrio",setdiff(colnames(parkings), colnames(valenba_barrio))))
@@ -195,7 +195,7 @@ valenba_barrio <- merge(valenba_barrio, prk2merge, by= "barrio", all.x = TRUE, n
 
 #DATOS SOBRE ZONAS VERDES
 
-zonas_verdes <- read.csv("data/zonas_verdes_por_barrio.csv", sep = ";")
+zonas_verdes <- read.csv("../data/zonas_verdes_por_barrio.csv", sep = ";")
 
 colnames(zonas_verdes) <- c("barrio", "superficie_zonas_verdes")
 
@@ -210,7 +210,7 @@ valenba_barrio <- merge(valenba_barrio, zonas_verdes, by = "barrio", all.x = TRU
 Estos datos se obtienen de un fichero csv de la página web de datos abiertos de valencia, por ello, ya se dispone de la información separada por barrios. Por lo tanto, se utiliza la primera técnica comentada para añadir estos datos al dataset.
 
 ```{r alquiler}
-alquiler <- read.csv("data/precio-alquiler-vivienda.csv", sep = ";")
+alquiler <- read.csv("../data/precio-alquiler-vivienda.csv", sep = ";")
 
 alq2merg <- select(alquiler, c("BARRIO", "Precio_2022..Euros.m2."))
 colnames(alq2merg) <- c("barrio", "precio_alquiler")
@@ -220,16 +220,16 @@ valenba_barrio <- merge(valenba_barrio, alq2merg, by = "barrio", all.x = TRUE, n
 
 ## Adición del distrito
 
-También se le añade el distrito al que pertence cada barrio para poder agurparlos por distrito si fuese necesario en los posteriores análisis.
+También se le añade el distrito al que pertenece cada barrio para poder agruparlos por distrito si fuese necesario en los posteriores análisis.
 
-Para ello se concatena sobre el `data.frame` el nombre del distrito al que pertenece cada barrio obtenido de ambos ficheros de infomación acerca de barrios y distritos de los datos abiertos, que pueden concatenarse por el código de distrito.
+Para ello se concatena sobre el `data.frame` el nombre del distrito al que pertenece cada barrio obtenido de ambos ficheros de información acerca de barrios y distritos de los datos abiertos, que pueden concatenarse por el código de distrito.
 
 ```{r distrito}
-aux_barrios <- read.csv("data/barrios_valencia.csv", sep = ";")
+aux_barrios <- read.csv("../data/barrios_valencia.csv", sep = ";")
 aux_barrios <- aux_barrios %>% select(c("Nombre", "Codigo.distrito"))
 colnames(aux_barrios) <- c("barrio", "Codigo.distrito")
 
-aux_distritos <- read.csv("data/distritos_valencia.csv", sep = ";")
+aux_distritos <- read.csv("../data/distritos_valencia.csv", sep = ";")
 aux_distritos <- aux_distritos %>% select(c("Nombre", "Código.distrito"))
 aux_distritos <- unique(aux_distritos)
 colnames(aux_distritos) <- c("distrito", "Codigo.distrito")
@@ -241,6 +241,42 @@ valenba_barrio <- merge(valenba_barrio, barrio_distrito, by = "barrio", all.x = 
 valenba_barrio$distrito <- as.factor(valenba_barrio$distrito)
 ```
 
+## Adición de puntos de interés
+
+```{r}
+amenity <- read_parquet("../00_hervas/sitios_interes/amenity.parquet")
+
+colnames(amenity) <- c("barrio", "amenity")
+
+valenba_barrio <- merge(valenba_barrio, amenity, by= "barrio", all.x = TRUE, na.rm = TRUE)
+
+
+
+
+monuments <- read_parquet("../00_hervas/sitios_interes/monuments.parquet")
+
+colnames(monuments) <- c("barrio", "monuments")
+
+valenba_barrio <- merge(valenba_barrio, monuments, by= "barrio", all.x = TRUE, na.rm = TRUE)
+
+
+
+
+shop <- read_parquet("../00_hervas/sitios_interes/shop.parquet")
+
+colnames(shop) <- c("barrio", "shop")
+
+valenba_barrio <- merge(valenba_barrio, shop, by= "barrio", all.x = TRUE, na.rm = TRUE)
+
+
+
+
+sport <- read_parquet("../00_hervas/sitios_interes/sport.parquet")
+
+colnames(sport) <- c("barrio", "sport")
+
+valenba_barrio <- merge(valenba_barrio, sport, by= "barrio", all.x = TRUE, na.rm = TRUE)
+```
 
 
 
