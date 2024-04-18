@@ -50,6 +50,7 @@ head(df)
 
 # Obtener suma de m2 por barrio
 
+No utilizamos la columna ya definida porque no es correcta del todo, así que se va a obtener la suma de los m2 de cada barrio mediante el area de la figura geométrica.
 Para ello, utilizaremos el geo_shape de cada zona verde y sumaremos el area de esa figura geométrica.
 
 ```{r string_vacio}
@@ -64,7 +65,7 @@ hay_string_vacio <- any(grepl("^$", df$geo_shape))
 print(hay_string_vacio)
 ```
 
-Ahora, vamos a obtener la suma de las áreas de cada polígono.
+Ahora, vamos a obtener la suma de las áreas de cada polígono. Los geo_shape son una estructura de datos con un punto para cada vértice del polígono, de forma que existen funciones para obtener el área del polígono.
 
 ```{r suma_m2}
 # Convertimos la columna 'geo_shape' a tipo 'sf'
