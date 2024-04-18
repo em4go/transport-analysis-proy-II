@@ -1,0 +1,235 @@
+---
+title: "Información de Barrios"
+author: "Marc Hurtado"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Para realizar esta recogida de información, es necesario usar las siguientes librerías:
+
+leaflet: Para la creación de mapas ????
+dplyr: Para la manipulación de datos
+tidyr: Para la manipulación de datos, creación de tablas
+sf: Para la manipulación de datos geográficos, determinar que puntos estan dentro de los barrios
+jsonlite: Para la manipulación de datos
+arrow: Para la manipulación de datos, en nuestro caso para la lectura de ficheros parquet
+knir: Para mostrar la información de una forma más visual. 
+
+
+```{r}
+library(leaflet)
+library(dplyr)
+library(tidyr)
+library(sf)
+library(jsonlite)
+library(arrow)
+library(knitr)
+library(ggplot2)
+```
+
+# Carga de datos
+
+Todos los datos son obtenidos de la página de datos abiertos del Ayuntamiento de Valècia En este caso, se han descargado los datos de información general de los barrios de València, los datos de las plazas de aparcamiento, los datos de las paradas de taxis y los datos de la red de movilidad reducida, más concretamente de las plazas de aparcamiento.
+
+```{r}
+data_barrios <- read.csv2("./data/barrios_valencia.csv", sep = ";")
+
+data_mob_red <- read.csv("./00_marc/dataTratada/plazas_mobred_geo.csv", sep = ",")
+  
+data_parkings <- read.csv("./00_marc/dataTratada/dataParkings.csv", sep = ",")
+
+data_taxis <- read.csv2("./00_marc/dataPre/data_taxis.csv", sep = ";")
+```
+
+# Tratamiento de datos
+
+En primer lugar, separamos la columna geo_point_2d en dos columnas, Latitude y Longitude, para poder trabajar con ellas. Para determinar los puntos por las dos coordenadas y no como un objeto geojson.
+
+```{r}
+data_taxis <- tidyr::separate(data_taxis, geo_point_2d, into = c("Latitude", "Longitude"), sep = ",")
+data_taxis$Latitude <- as.numeric(data_taxis$Latitude)
+data_taxis$Longitude <- as.numeric(data_taxis$Longitude)
+```
+
+Función auxiliar para obtener los polígonos de los barrios, dado un objeto geojson.
+
+```{r}
+obtener_poligonos <- function(df){
+  polygons <- lapply(df$geo_shape, function(x) st_read(x, quiet = TRUE))
+  
+  # Combina todos los objetos sf en un solo objeto sf
+  polygons_barrios <- do.call(rbind, polygons)
+  
+  polygons_barrios$Nombre <- df$Nombre
+  return(polygons_barrios)
+}
+```
+
+Obtenemos los polígonos de los barrios.
+
+```{r}
+poligons_barrios <- obtener_poligonos(data_barrios)
+poligons_barrios
+```
+
+# Obtención de los Datos
+
+## Paradas de Movilidad Reducida
+
+Ahora, realizamos un bucle que recorra todas las filas de la tabla de plazas de aparcamiento para personas de movilidad reducida (ya que cada fila es un lugar donde hay plazas) y determine en que barrio se encuentra cada una de ellas. Para ello, utilizamos la función st_within de la librería sf, que nos permite determinar si un punto está dentro de un polígono.
+
+```{r}
+plazas <- data.frame()
+# Iterate over each plaza
+for (pl in 1:nrow(data_mob_red)) {
+  point <- st_point(c(as.numeric(data_mob_red$longitud[pl]), as.numeric(data_mob_red$latitud[pl])), dim = "XY")
+  #longitud y latitud porque los poligonos de los barrios estan en ese orden
+  b <- unlist(st_within(point, poligons_barrios$geometry)) 
+  
+  if (length(b) > 0) {
+    plazas <- rbind(plazas, data.frame(
+      id_plaza = data_mob_red$id_plaza[pl],
+      plazas_mob = data_mob_red$n_plazas[pl],
+      barrio = poligons_barrios$Nombre[b]
+    ))
+  } else {
+    plazas <- rbind(plazas, data.frame(
+      id_plaza = NA,
+      plazas_mob = NA,
+      barrrio = "OTRO"
+    ))
+  }
+}
+```
+
+Relizamos una agregación de las plazas de aparcamiento para personas de movilidad reducida por barrio.
+
+```{r fig.width = 16}
+resultado_plazas_mob <- aggregate(plazas_mob ~ barrio, data = plazas, FUN=sum)
+
+ggplot(resultado_plazas_mob, aes(x = barrio, y = plazas_mob)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Distribución de plazas de movilidad reducida por barrio",
+       x = "Barrio",
+       y = "Frecuencia")
+```
+
+
+```{r}
+kable(resultado_plazas_mob)
+```
+
+
+## Paradas de Parkings Públicos
+
+Repetimos el mismo procedimiento pero ahora para los parkings públicos.
+
+```{r}
+parkings <- data.frame()
+for (pl in 1:nrow(data_parkings)) {
+  point <- st_point(c(as.numeric(data_parkings$Longitude[pl]), as.numeric(data_parkings$Latitude[pl])), dim = "XY")
+  #longitud y latitud porque los poligonos de los barrios estan en ese orden
+  b <- unlist(st_within(point, poligons_barrios$geometry)) 
+  
+  if (length(b) > 0) {
+    parkings <- rbind(parkings, data.frame(
+      id_plaza = data_parkings$Id[pl],
+      plazas_parkings = data_parkings$Total.parking.spaces[pl],
+      barrio = poligons_barrios$Nombre[b]
+    ))
+  } else {
+    parkings <- rbind(parkings, data.frame(
+      id_plaza = NA,
+      plazas_parkings = NA,
+      barrio = "OTRO"
+    ))
+  }
+}
+```
+
+
+```{r}
+resultado_parkings <- aggregate(plazas_parkings ~ barrio, data = parkings, FUN=sum)
+
+ggplot(resultado_parkings, aes(x = barrio, y = plazas_parkings)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Distribución de plazas de parking por barrio",
+       x = "Barrio",
+       y = "Frecuencia")
+```
+
+
+```{r}
+kable(resultado_parkings)
+```
+
+
+## Paradas de Taxis
+
+Y por último, para las paradas de taxis.
+
+```{r}
+taxis <- data.frame()
+for (pl in 1:nrow(data_taxis)) {
+  point <- st_point(c(as.numeric(data_taxis$Longitude[pl]), as.numeric(data_taxis$Latitude[pl])), dim = "XY")
+  #longitud y latitud porque los poligonos de los barrios estan en ese orden
+  b <- unlist(st_within(point, poligons_barrios$geometry)) 
+  
+  if (length(b) > 0) {
+    taxis <- rbind(taxis, data.frame(
+      id_plaza = data_taxis$OBJECTID[pl],
+      paradas_taxis = 1,
+      barrio = poligons_barrios$Nombre[b]
+    ))
+  } else {
+    taxis <- rbind(taxis, data.frame(
+      id_plaza = NA,
+      paradas_taxis = 0,
+      barrrio = "OTRO"
+    ))
+  }
+}
+```
+
+
+```{r fig.width = 10}
+resultado_taxis <- aggregate(paradas_taxis ~ barrio, data = taxis, FUN=sum)
+
+ggplot(resultado_taxis, aes(x = barrio, y = paradas_taxis)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
+  labs(title = "Distribución de plazas de parking por barrio",
+       x = "Barrio",
+       y = "Frecuencia")
+```
+
+
+```{r}
+kable(resultado_taxis)
+```
+
+# Agrupación
+
+Finalmente, agrupamos toda la información en una única tabla, que será en la que se guarde toda la información de los barrios.
+
+```{r}
+info_barrio <- data.frame('barrio' = data_barrios$Nombre)
+
+info_barrio <- merge(info_barrio, resultado_plazas_mob, by = "barrio", all.x = TRUE)
+info_barrio <- merge(info_barrio, resultado_taxis, by = "barrio", all.x = TRUE)
+info_barrio <- merge(info_barrio, resultado_parkings, by = "barrio", all.x = TRUE)
+kable(info_barrio)
+```
+
+# Guardado de la información
+
+Para guardar la información, empleamos el formato csv y parquet. Este último es un formato de almacenamiento de datos columnar, que permite una lectura y escritura más rápida de los datos, además de guardar el esquema de los datos.
+
+
+
+```{r}
+write.csv(info_barrio, file = "./00_marc/dataTratada/info_barrio.csv", row.names = FALSE)
+write_parquet(info_barrio,"./00_marc/dataTratada/info_barrio.parquet")
+```
