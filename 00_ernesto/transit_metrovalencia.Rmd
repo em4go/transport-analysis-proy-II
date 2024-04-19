@@ -1,9 +1,14 @@
 ---
-title: "Metro Valencia"
+title: "Análisis de metrovalencia"
 author: "Ernesto Martínez"
-output: html_document
-  - toc: true
-  
+output: 
+  html_document:
+    toc: true
+    number_sections: false
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
 ---
 
 ```{r include = FALSE}
@@ -31,30 +36,150 @@ summary(gtfs)
 ```
 
 
-```{r}
-gtfs$calendar$service_id <- as.factor(gtfs$calendar$service_id)
-gtfs$trips$service_id <- as.factor(gtfs$trips$service_id)
-```
+## Análisis del calendario
 
 Existe una variable llamada service_id, que indica el tipo de servicio que se ofrece ese día. También sirve para saber qué trenes (rutas) están en servicio ese día.
 
-Como no están todos los días en el calendario, en este primer enfoque se va a trabajar solo con el servicio más frecuente.
+Como no están todos los días en el calendario, en este primer enfoque se va a trabajar solo con el servicio más frecuente. Para ello, se va a realizar un análisis de los servicios en función de las fechas.
+
+En el dataframe de calendario tenemos qué día de la semana corresponde a cada servicio, pero solo nos da información sobre sábados y domingos, por lo que no parece muy útil.
 
 ```{r}
-# get the most frequent service_id
+gtfs$calendar$service_id <- as.factor(gtfs$calendar$service_id)
+gtfs$trips$service_id <- as.factor(gtfs$trips$service_id)
+
+gtfs$calendar
+```
+
+Necesitamos otro dataframe (`calendar_dates`) que nos dé información sobre el servicio de cada día.
+
+```{r}
+summary(gtfs$calendar_dates)
+```
+
+```{r}
+head(gtfs$calendar_dates)
+```
+
+```{r}
+gtfs$calendar_dates$exception_type <- as.factor(gtfs$calendar_dates$exception_type)
+gtfs$calendar_dates$exception_type
+```
+
+La variable exception type siempre es 1, por lo que podemos ignorarla.
+
+Primero, vamos a crear una columna para ver qué día de la semana corresponde a cada fecha para saber si hay alguna relación entre el tipo de servicio y el día de la semana.
+
+```{r}
+gtfs$calendar_dates <- gtfs$calendar_dates %>%
+  mutate(weekday = wday(gtfs$calendar_dates$date, week_start = 1))
+
+gtfs$calendar_dates %>%
+  arrange(date) %>%
+  head()
+```
+
+Ahora vamos a calcular la frecuencia de cada servicio (service_id) en condicionada por el día de la semana con una tabla de contingencia.
+
+```{r}
+contingency_table <- xtabs(~ service_id + weekday, data = gtfs$calendar_dates)
+
+contingency_table
+```
+
+```{r}
+# Calcula los totales por día de la semana
+totals_by_weekday <- colSums(contingency_table)
+
+# Divide cada elemento de la tabla de contingencia por su total de día de la semana correspondiente
+relative_frequencies <- sweep(contingency_table, 2, totals_by_weekday, FUN="/")
+
+relative_frequencies
+```
+
+
+```{r}
+df_for_heatmap <- as.data.frame(as.table(relative_frequencies))
+names(df_for_heatmap) <- c("weekday", "service_id", "frequency")
+
+ggplot(df_for_heatmap, aes(x = service_id, y = weekday, fill = frequency)) +
+  geom_tile() + 
+  geom_text(aes(label = round(frequency, 2)), color = "black", size = 3) + 
+  scale_fill_gradient(low = "white", high = "lightseagreen", name = "Frecuencia\nRelativa") +
+  labs(title = "Frecuencias Relativas de Service_ID por Columna",
+       x = "Día de la Semana", y = "ID de Servicio") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+En el mapa de calor se ve muy claro que hay un servicio que se ofrece habitualmente de lunes a jueves, otro para viernes, otro para sábado y otro para domingo.
+
+
+Podemos hacer lo mismo para el dataframe dates_services.
+
+```{r}
+gtfs$.$dates_services <- gtfs$.$dates_services %>%
+  mutate(weekday = wday(date, week_start = 1))
+
+gtfs$.$dates_services %>%
+  filter(weekday < 6) %>%
+  arrange(date) %>%
+  head()
+```
+
+```{r}
+contingency_table <- xtabs(~ service_id + weekday, data = gtfs$.$dates_services)
+
+contingency_table
+```
+
+
+```{r}
+# Calcula los totales por día de la semana
+totals_by_weekday <- colSums(contingency_table)
+
+# Divide cada elemento de la tabla de contingencia por su total de día de la semana correspondiente
+relative_frequencies <- sweep(contingency_table, 2, totals_by_weekday, FUN="/")
+
+relative_frequencies
+```
+
+
+```{r}
+df_for_heatmap <- as.data.frame(as.table(relative_frequencies))
+names(df_for_heatmap) <- c("weekday", "service_id", "frequency")
+
+ggplot(df_for_heatmap, aes(x = service_id, y = weekday, fill = frequency)) +
+  geom_tile() + 
+  geom_text(aes(label = round(frequency, 2)), color = "black", size = 3) + 
+  scale_fill_gradient(low = "white", high = "lightseagreen", name = "Frecuencia\nRelativa") +
+  labs(title = "Frecuencias Relativas de Service_ID por Columna",
+       x = "Día de la Semana", y = "ID de Servicio") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+Entre semana el servicio que más se ofrece coincide en ambos dataframes, mientras que en el fin de semana cambia de uno a otro. Puesto que el primer dataframe `calendar` nos dice la misma información que `dates_services` y hay más información en `dates_services`, se asumirá que los servicios frecuentemente ofrecidos los fines de semana son el 100 y 200.
+
+Puesto que el servicio 2516 es el que cubre más días de la semana, se trabajará con este servicio a partir de ahora para no mezclar diferentes servicios.
+
+```{r}
+trips <- gtfs$trips %>%
+  filter(service_id == "2516")
+```
+
+## Análisis de las rutas de metro
+
+Podemos saber el número de trenes por cada servicio.
+
+```{r}
 gtfs$trips %>%
   group_by(service_id) %>%
   summarise(frequency = n()) %>%
   arrange(desc(frequency))
 ```
-
-El servicio más frecuente es el 2562, por lo que se trabajará con este servicio a partir de ahora para no mezclar diferentes servicios.
-
-```{r}
-trips <- gtfs$trips %>%
-  filter(service_id == "2562")
-```
-
 
 Observemos también cuáles son las rutas más frecuentes:
 
@@ -182,9 +307,6 @@ head(stop_times)
 tail(stop_times)
 ```
 
-Hay algunos metros que pasan a las 26:46 horas, lo que puede dar lugar a confusión. Esto ocurre para que sea más fácil ordenar los metros por hora. Es decir, si un metro pasa a las 26:46 horas, se considera que pasa a las 2:46 horas del día siguiente.
-
-Esto se da hasta las 27:31 horas, que se considera que es a las 3:31 horas del día siguiente.
 
 
 ```{r}
@@ -193,6 +315,7 @@ stop_times %>%
   arrange(desc(arrival_time)) %>%
   head()
 ```
+Hay algunos metros que pasan a las 24:30 horas, lo que puede dar lugar a confusión. Esto ocurre para que sea más fácil ordenar los metros por hora. Es decir, si un metro pasa a las 24:30 horas, se considera que pasa a las 00:30 horas del día siguiente.
 
 Al filtrar stop_times por una parada en concreto, se puede ver el horario del metro de esa parada.
 
@@ -212,7 +335,9 @@ stop_times %>%
   group_by(time_of_day) %>%
   summarise(n_metros = n())
 ```
-Podemos ver que cuando más metros hay es en la franja desde las 21 hasta las 6 horas, que es la franja de la noche. Esto tiene sentido porque aunque hay menos densidad de metros por hora, la franja horaria es más larga.
+Podemos ver que cuando más metros hay es en la franja desde las 12 hasta las 15 horas, que es la franja de la hora de comer. Por otro lado, como era de esperar entre semana, el servicio nocturno es el menos frecuente.
+
+Es interesante ver que en la franja de __Morning__ hay menos metros que en el resto de franjas del día. Esto se debe a que están incluidas las 6 a.m. y a esa hora no hay mucho servicio de metro.
 
 
 Ahora se va a ver el número de metros por franja horaria en la parada de Universitat Politècnica.
@@ -223,160 +348,42 @@ times_politecnica %>%
   summarise(n_metros = n())
 ```
 
-
-```{r}
-gtfs$calendar_dates <- gtfs$calendar_dates %>%
-  mutate(weekday = wday(gtfs$calendar_dates$date, week_start = 1))
-
-gtfs$calendar_dates %>%
-  arrange(date)
-```
-
-Calcular la frecuencia de cada service_id en base al día de la semana con una tabla de contingencia
-
-
-```{r}
-contingency_table <- xtabs(~ service_id + weekday, data = gtfs$calendar_dates)
-
-contingency_table
-```
-
-```{r}
-# Calcula los totales por día de la semana
-totals_by_weekday <- colSums(contingency_table)
-
-# Divide cada elemento de la tabla de contingencia por su total de día de la semana correspondiente
-relative_frequencies <- sweep(contingency_table, 2, totals_by_weekday, FUN="/")
-
-relative_frequencies
-```
-
-
-```{r}
-# Convierte la tabla de frecuencias relativas en dataframe
-df_for_heatmap <- as.data.frame(as.table(relative_frequencies))
-names(df_for_heatmap) <- c("weekday", "service_id", "frequency")
-
-# Asumiendo que ya tienes df_for_heatmap preparado como antes
-ggplot(df_for_heatmap, aes(x = service_id, y = weekday, fill = frequency)) +
-  geom_tile() +  # Crea las baldosas del mapa de calor
-  geom_text(aes(label = round(frequency, 2)), color = "black", size = 3) +  # Añade texto
-  scale_fill_gradient(low = "white", high = "red", name = "Frecuencia\nRelativa") +
-  labs(title = "Frecuencias Relativas de Service_ID por Columna",
-       x = "Día de la Semana", y = "ID de Servicio") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-```
-
-
-```{r}
-gtfs$calendar %>%
-  arrange(start_date)
-```
-
-```{r}
-gtfs$.$dates_services <- gtfs$.$dates_services %>%
-  mutate(weekday = wday(date, week_start = 1))
-
-gtfs$.$dates_services %>%
-  filter(weekday < 6) %>%
-  arrange(date)
-```
-
-
-
-Ahora voy a crear un dataframe con todas las fechas de 2024 y los service_id correspondientes a cada fecha
-
-Primero se concatenan las tablas de fechas y servicios: dates_services y calendar_dates
-
-
-```{r}
-# quitar la columna exception_type
-gtfs$calendar_dates <- gtfs$calendar_dates %>% select(-all_of(c("exception_type")))
-
-```
-
-```{r}
-all_dates <- rbind(gtfs$calendar_dates, gtfs$.$dates_services)
-```
-
-```{r}
-dates_24 <- all_dates %>%
-  filter(year(date) == 2024) %>%
-  arrange(date)
-
-dates_24
-```
-
-
-
-
-```{r}
-gtfs$calendar %>%
-  arrange(start_date)
-
-gtfs$calendar_dates %>%
-  arrange(date)
-```
+Para la parada de Universitat Politècnica ocurre lo mismo que en la tendencia general.
 
 ## Caracterización de las líneas de metro
 
-Para cada service_id, para cada estación:
+Para cada service_id, para cada estación pordemos conocer las siguientes características:
 
 - Nº de metros / hora
 - Nº de metros / día
-- Nº de metros
-- Intermediación de la estación (con grafo)
+- Nº de metros totales
 - Nº de metros / hora por línea
 - Nº de metros / día por línea
 
-Para cada línea:
-
-- Nº de trasbordos posibles en cada línea. Nº de estaciones donde se pueden hacer trasbordo por línea
-
-Crear un grafo con las estaciones y las líneas de metro
+También se puede crear un grafo con las estaciones y las líneas de metro, de forma que podamos extraer más características como la intermediación de una estación, su grado (número de estaciones con las que se conecta directamente), etc.
 
 ### Nº de metros
 
-Vamos a usar el service_id más frecuente para hacer las pruebas.
+Es necesario unir las tablas de rutas, trips, stop_times y stops para esta tarea y las siguientes:
 
 ```{r}
-most_frequent_service_id <- gtfs$trips %>%
-  group_by(service_id) %>%
-  summarise(frequency = n()) %>%
-  arrange(desc(frequency)) %>%
-  head(1) %>%
-  pull(service_id)
-
-most_frequent_service_id
-```
-
-Recoger todos los trips con el service_id más frecuente
-
-```{r}
-trips_mf <- gtfs$trips %>%
-  filter(service_id == most_frequent_service_id)
-
-trips_mf
-```
-
-Unir las tablas de rutas, trips, stop_times y stops
-
-```{r}
-trips_stops_details <- trips_mf %>%
+trips_stops_details <- trips %>%
   inner_join(gtfs$routes, by = "route_id") %>%
   inner_join(gtfs$stop_times, by = "trip_id") %>%
   inner_join(gtfs$stops, by = "stop_id")
 
-trips_stops_details
+head(trips_stops_details)
 ```
 
-Número de metros por hora por estación.
+```{r}
+nrow(trips_stops_details)
+```
 
-Quiero una tabla que tenga por cada fila:
+El número de metros totales cada día es de 29.864
 
-stop_id, stop_name, numero de metros por hora con una columna para cada hora
+
+### Número de metros por hora por estación.
+
 
 ```{r}
 metros_por_hora <- trips_stops_details %>%
@@ -386,29 +393,51 @@ metros_por_hora <- trips_stops_details %>%
 metros_por_hora
 ```
 
-Quiero trasponer las columnas hour y metros para tener una columna por cada hora
+Quiero trasponer las columnas hour y metros para tener una columna por cada hora, de forma que sea más fácil ver la tabla para cada estación.
 
 ```{r}
 library(tidyr)
 metros_por_hora_t <- metros_por_hora %>%
   pivot_wider(names_from = hour, values_from = metros, values_fill = 0)
 
-metros_por_hora_t
+head(metros_por_hora_t)
 ```
 
+El número de metros por hora por estación incluye tanto los de entrada como los de salida.
 
-Número de metros por día por estación, sumando los metros por hora
+### Número de metros por día por estación
+
+Es tan fácil como sumar los metros por hora del dataframe creado antes.
 
 ```{r}
 metros_por_dia <- metros_por_hora %>%
   group_by(stop_id, stop_name) %>%
-  summarise(metros = sum(metros))
+  summarise(metros = sum(metros), .groups = "drop")
   
 
-metros_por_dia
+head(metros_por_dia)
 ```
 
-Número de líneas que pasan por cada estación, con una columna que contiene una lista con las líneas y otra con el número de líneas
+Para ver la distribución de metros por estación al día, se puede hacer un histograma que la muestre.
+
+```{r}
+ggplot(metros_por_dia, aes(x = metros)) +
+  geom_histogram(fill = "lightseagreen", color = "black", bins = 30) +
+  labs(title = "Distribución de metros por día por estación",
+       x = "Número de metros",
+       y = "Número de estaciones") +
+  theme_minimal()
+```
+
+```{r}
+metros_por_dia %>%
+  arrange(desc(metros)) %>%
+  head(10)
+```
+
+
+
+### Número de líneas que pasan por cada estación, con una columna que contiene una lista con las líneas y otra con el número de líneas
 
 
 ```{r}
@@ -755,13 +784,13 @@ print(V(g)[neighbors(g, which.max(degree_distribution))]$stop_name)
 
 ```{r}
 # shortet path from benimaclet to sant isidre
-s1 <- V(g)[stop_name == "Sant Isidre"]
-s2 <- V(g)[stop_name == "Àngel Guimerà"]
-
-shortest_path <- shortest_paths(g, from = s2, to = s1)
-
-# get the path
-shortest_path$vpath[[1]]$stop_name
+#s1 <- V(g)[stop_name == "Sant Isidre"]
+#s2 <- V(g)[stop_name == "Àngel Guimerà"]
+#
+#shortest_path <- shortest_paths(g, from = s2, to = s1)
+#
+## get the path
+#shortest_path$vpath[[1]]$stop_name
 ```
 
 
