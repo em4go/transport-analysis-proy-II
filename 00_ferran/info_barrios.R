@@ -61,12 +61,15 @@ poblacion$barrio <- toupper(sapply(strsplit(stri_trans_general(poblacion$X,"Lati
 
 poblacion <- poblacion %>% select(-c(X, X.1, X.2, X.3, X.4, X.5, X.6, X.7, X.8))
 
-colnames(poblacion) <- c("Total_poblacion", "0-15 años", "16-64 años", "65 o más", "barrio")
+colnames(poblacion) <- c("Total_poblacion", "X0_15_años", "X16_64_años", "X65_o_más", "barrio")
+
+# sustituir los puntos por nada
+poblacion <- data.frame(apply(poblacion, 2, function(x) gsub("\\.", "", x)))
 
 poblacion$Total_poblacion <- as.numeric(poblacion$Total_poblacion)
-poblacion$`0-15 años` <- as.numeric(poblacion$`0-15 años`)
-poblacion$`16-64 años` <- as.numeric(poblacion$`16-64 años`)
-poblacion$`65 o más` <- as.numeric(poblacion$`65 o más`)
+poblacion$X0_15_años <- as.numeric(poblacion$X0_15_años)
+poblacion$X16_64_años <- as.numeric(poblacion$X16_64_años)
+poblacion$X65_o_más <- as.numeric(poblacion$X65_o_más)
 
 valenba_barrio <- merge(valenba_barrio, poblacion, by = "barrio", all.x = TRUE)
 

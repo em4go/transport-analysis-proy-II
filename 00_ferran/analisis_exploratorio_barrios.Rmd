@@ -117,7 +117,7 @@ Tras realizar un primer vistazo al dataset que habíamos obtenido, quisimos comp
 
 faltantes <- df2 %>% group_by(distrito) %>% summarise_all(~sum(is.na(.)))
 # Quitamos la población por rangos de edad, ya que son variables prescindibles
-faltantes <- faltantes %>% select(-c("0-15 años", "16-64 años", "65 o más"))
+faltantes <- faltantes %>% select(-c("X0_15_años", "X16_64_años", "X65_o_más"))
 
 max_faltantes <- cbind(faltantes %>% select(distrito), n_faltantes = faltantes %>% 
                          select(-distrito) %>% apply(1, max))
