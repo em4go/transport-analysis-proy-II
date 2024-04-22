@@ -2,7 +2,7 @@ library(factoextra)
 library(FactoMineR)
 library(knitr)
 
-dataBarrios <- read.csv("data/info_general_barrio_final.csv", sep = ",")
+dataBarrios <- read.csv("../data/info_general_barrio_final.csv", sep = ",")
 dataBarrios[is.na(dataBarrios)] <- 0
 rownames(dataBarrios) <- dataBarrios$barrio
 dataBarrios2 <- subset(dataBarrios, select = -c(barrio, geo_shape, X))
@@ -159,7 +159,7 @@ fviz_pca_var(res.pca1, axes = c(1,2), repel = TRUE, col.var = "contrib",
 fviz_pca_var(res.pca1, axes = c(3,4), repel = TRUE, col.var = "contrib",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
 
-fviz_pca_ind(res.pca1, axes = c(1,2), geom = c("point", "text"), habillage = "distrito", repel = TRUE, labelsize = 2)
+fviz_pca_ind(res.pca1, axes = c(1,2), geom = c("point", "text"), habillage = "distrito", repel = TRUE, labelsize = 2, addEllipses = TRUE, ellipse.level = 0.5)
 
 fviz_pca_ind(res.pca1, axes = c(3,4), geom = c("point", "text"), habillage = "distrito", repel = TRUE, labelsize = 2)
 
