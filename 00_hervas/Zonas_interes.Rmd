@@ -1,27 +1,57 @@
+---
+title: "Zonas De Interes"
+author: "ALEJANDRO"
+date:  "`r Sys.Date()`"
+output: 
+    html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Librerias
+
+Primero cargamos las librerias que vamos a utilizar. 
+
+```{r Librerias, message=FALSE, warning=FALSE}
 library(osmdata)
 library(dplyr)
 library(sf)
-library(leaflet)
-library(dplyr)
 library(arrow)
 
+```
 
+## Obtención de etiquetas
+
+Obtenemos las etiquetas necesarias para poder realizar las consultas osm. Unas han sido obtenidas mediante la función 'available_tag' y otras han sido añadidas a mano a partir de información de la web https://wiki.openstreetmap.org/wiki/Map_features.
+
+```{r pressure, echo=FALSE}
 # Get all the tags available in the OSM database from differente categories
 food <- c("bar", "biergarten", "cafe", "fast_food", "food_court", "ice_cream", "pub", "restaurant")
 food <- data.frame(Key = "amenity", Value = food) # Create a data.frame for food with the columns Key and Value
 
 # Create a data.frame for sports with the columns Key and Value
-sports2 <-  available_tags(feature="sport")
+sports <-  available_tags(feature="sport")
 
-sports <- rbind(sports, sports2) # Combine sports and sports2
-sports
 monuments <- available_tags(feature="historic")
 
 shops <- c("department_store", "general", "kiosk", "mall", "supermarket", "wholesale")
 shops <- data.frame(Key = "shop", Value = shops) # Create a data.frame for shops with the columns Key and Value
+```
 
-vlc_bb <- getbb("Valencia, Spain")
 
+## Obtención de poligonos.
+
+Primero cargamos los datos de las dimensiones de cada barrio de Valencia, y mediante la función 'obtener_poligonos' obtenemos los poligonos correspondientes a cada barrio.
+
+```{r pressure, echo=FALSE}
 
 data_barrios <- read.csv2("./data/barrios_valencia.csv", sep = ";")
 
@@ -36,14 +66,25 @@ obtener_poligonos <- function(df){
 }
 
 poligonos_barrios<-obtener_poligonos(data_barrios)
+```
 
 
-#AMENITY
+## Consultas
+
+Ahora vamos a obtener la bouding box de valencia, para realizar las cosultas sobre ella.
+
+```{r pressure, echo=FALSE}
+vlc_bb <- getbb("Valencia, Spain")
+```
+
+### Amenity
+
+Vamos a realizar las consultas osm de los lugares de restauración. Posteriormente, obtenemos las coordenadas de todos los lugares que nos ha proporcionado la consulta y guardamos la latitud y la longitud en un dataframe.
+
+```{r pressure, echo=FALSE}
 consulta_amenity <- vlc_bb%>% 
   opq() %>%
   add_osm_feature(key = 'amenity', value = c("bar", "biergarten", "cafe", "fast_food", "food_court", "ice_cream", "pub", "restaurant")) 
-
-
 # Obtener los datos de OpenStreetMap (OSM)
 datos_comida <- osmdata_sf(consulta_amenity)
 lugares_comida<-datos_comida$osm_points
@@ -54,7 +95,11 @@ data_comida <- data.frame(
   longitud = ubicaciones_comida[, "X"],
   latitud = ubicaciones_comida[, "Y"]
 )
-data_comida
+```
+
+Creamos un nuevo dataframe donde iteramos cada par longitud-latitud y asignamos el barrio al que pertenece. Los puntos que no pertenecen a ningún barrio los asignamos a 'OTRO'.
+
+```{r pressure, echo=FALSE}
 
 amenity<-data.frame()
 for (pt in 1:nrow(data_comida)) {
@@ -72,14 +117,22 @@ for (pt in 1:nrow(data_comida)) {
     ))
   }
 }
+```
 
+Obtenemos las frecuencias de aparición de cada barrio y eliminamos aquellos puntos que no pertenecen a ningún barrio.
+
+```{r}
 frecuencias_amenity <- table(amenity$barrio)
-frecuencias_amenity
-# Convertir el resultado en un dataframe
+
+
 resultado_amenity <- data.frame(nombre = names(frecuencias_amenity), frecuencia = as.vector(frecuencias_amenity))
 resultado_amenity<- resultado_amenity[resultado_amenity$nombre != "OTRO", ]
+```
 
+Para las consults de sitios históricos, deportivos y supermercados, se ha realizado el mismo procedimiento.
+### Monuments
 
+```{r pressure, echo=FALSE}
 #MONUMENTS
 consulta_monuments <- vlc_bb%>% 
   opq() %>%
@@ -93,7 +146,10 @@ data_monuments <- data.frame(
   longitud = ubicaciones_monuments[, "X"],
   latitud = ubicaciones_monuments[, "Y"]
 )
+```
 
+
+```{r pressure, echo=FALSE}
 monuments<-data.frame()
 for (pt in 1:length(ubicaciones_monuments)) {
   point <- st_point(c(as.numeric(data_monuments$longitud[pt]), as.numeric(data_monuments$latitud[pt])), dim = "XY")
@@ -110,19 +166,22 @@ for (pt in 1:length(ubicaciones_monuments)) {
     ))
   }
 }
-monuments
+```
+
+```{r}
 frecuencias_monuments <- table(monuments$barrio)
 
 # Convertir el resultado en un dataframe
 resultado_monuments <- data.frame(nombre = names(frecuencias_monuments), frecuencia = as.vector(frecuencias_monuments))
 resultado_monuments<- resultado_monuments[resultado_monuments$nombre != "OTRO", ]
+```
 
+###Sport
 
-
-#SPORT
+```{r}
 consulta_sport <- vlc_bb%>% 
   opq() %>%
-  add_osm_feature(key = 'sport', value = sports2$Value) 
+  add_osm_feature(key = 'sport', value = sports$Value) 
 
 datos_sport <- osmdata_sf(consulta_sport)
 lugares_sport<-datos_sport$osm_points
@@ -133,9 +192,10 @@ data_sport <- data.frame(
   longitud = ubicaciones_sport[, "X"],
   latitud = ubicaciones_sport[, "Y"]
 )
+```
 
 
-
+```{r}
 sport<-data.frame()
 for (pt in 1:nrow(data_sport)) {
   point <- st_point(c(as.numeric(data_sport$longitud[pt]), as.numeric(data_sport$latitud[pt])), dim = "XY")
@@ -152,16 +212,21 @@ for (pt in 1:nrow(data_sport)) {
     ))
   }
 }
-sport
+```
+
+
+```{r}
 frecuencias_sport <- table(sport$barrio)
 
 # Convertir el resultado en un dataframe
 resultado_sport <- data.frame(nombre = names(frecuencias_sport), frecuencia = as.vector(frecuencias_sport))
-resultado_sport
+
 resultado_sport<- resultado_sport[resultado_sport$nombre != "OTRO", ]
+```
 
-#SHOP
+###Shop
 
+```{r}
 consulta_shop <- vlc_bb%>% 
   opq() %>%
   add_osm_feature(key = 'shop', value = shops$Value) 
@@ -175,9 +240,10 @@ data_shop <- data.frame(
   longitud = ubicaciones_shop[, "X"],
   latitud = ubicaciones_shop[, "Y"]
 )
+```
 
-nrow(data_shop)
 
+```{r}
 shop<-data.frame()
 for (pt in 1:nrow(data_shop)) {
   point <- st_point(c(as.numeric(data_shop$longitud[pt]), as.numeric(data_shop$latitud[pt])), dim = "XY")
@@ -195,16 +261,25 @@ for (pt in 1:nrow(data_shop)) {
   }
 }
 
+```
+
+
+```{r}
 frecuencias_shop <- table(shop$barrio)
 
 # Convertir el resultado en un dataframe
 resultado_shop <- data.frame(nombre = names(frecuencias_shop), frecuencia = as.vector(frecuencias_shop))
 resultado_shop<- resultado_shop[resultado_shop$nombre != "OTRO", ]
+```
 
 
+##Creacion de dataset
+
+Creamos datasets de tipo parquet de los dataframes creados anteriormente.
+```{r}
 write_parquet(resultado_amenity, "00_hervas/amenity.parquet")
 write_parquet(resultado_monuments,"00_hervas/monuments.parquet")
 write_parquet( resultado_sport,"00_hervas/sport.parquet")
 write_parquet(resultado_shop,"00_hervas/shop.parquet")
-
+```
 
