@@ -42,7 +42,7 @@ dataBarrios[is.na(dataBarrios)] <- 0
 rownames(dataBarrios) <- dataBarrios$barrio
 
 #Eliminamos las columnas que no son necesarias para el análisis
-dataBarrios2 <- subset(dataBarrios, select = -c(barrio, geo_shape, X))
+dataBarrios2 <- subset(dataBarrios, select = -c(barrio, geo_shape, X, X0_15_años, X16_64_años, X65_o_más))
 ```
 
 ## Análisis de Componentes Principales (PCA)
@@ -52,7 +52,7 @@ Realizamos un análisis de componentes principales (PCA), mediante la libreria F
 
 ```{r}
 #Creación del PCA
-res.pca = PCA(dataBarrios2, scale.unit = TRUE, ncp = Inf, graph = FALSE, quanti.sup =  c("X0_15_años", "X16_64_años", "X65_o_más"), quali.sup = "distrito")
+res.pca = PCA(dataBarrios2, scale.unit = TRUE, ncp = Inf, graph = FALSE, quali.sup = "distrito")
 
 #Obtenemos los valores propios
 eig.val <- get_eigenvalue(res.pca)
@@ -72,7 +72,7 @@ kable(eig.val)
 Ahora, una vez determinado el número de componnetes para el análisis, realizamos el PCA con K = 4.
 
 ```{r}
-res.pca = PCA(dataBarrios2, scale.unit = TRUE, ncp = K, graph = FALSE, quanti.sup = c("X0_15_años", "X16_64_años", "X65_o_más"), quali.sup = "distrito")
+res.pca = PCA(dataBarrios2, scale.unit = TRUE, ncp = K, graph = FALSE, quali.sup = "distrito")
 ```
 
 ## Validación del PCA
@@ -128,7 +128,7 @@ Para aplicar la función `contribT2`, primero debemos centrar y escalar los dato
 
 ```{r}
 #Obtenemos la matriz de datos centrada y escalada
-barriosCE = subset(dataBarrios2, select=-c(X0_15_años, X16_64_años, X65_o_más, distrito))
+barriosCE = subset(dataBarrios2, select=-c(distrito))
 barriosCE = scale(barriosCE, center = TRUE, scale = TRUE)
 X = as.matrix(barriosCE)
 
@@ -189,9 +189,9 @@ barrios_sin_anomalos<-subset(dataBarrios2, !(rownames(dataBarrios2) == c("LA PUN
 Creamos los distintos PCAs
 
 ```{r}
-res.pca1 = PCA(barrios_sin_lapunta, scale.unit = TRUE, ncp = 4, graph = FALSE, quanti.sup = c("X0_15_años", "X16_64_años", "X65_o_más"), quali.sup = "distrito")
-res.pca2 = PCA(barrios_sin_grandes, scale.unit = TRUE, ncp = 4, graph = FALSE, quanti.sup = c("X0_15_años", "X16_64_años", "X65_o_más"), quali.sup = "distrito")
-res.pca3 = PCA(barrios_sin_anomalos, scale.unit = TRUE, ncp = 4, graph = FALSE, quanti.sup = c("X0_15_años", "X16_64_años", "X65_o_más"), quali.sup = "distrito")
+res.pca1 = PCA(barrios_sin_lapunta, scale.unit = TRUE, ncp = 4, graph = FALSE, quali.sup = "distrito")
+res.pca2 = PCA(barrios_sin_grandes, scale.unit = TRUE, ncp = 4, graph = FALSE, quali.sup = "distrito")
+res.pca3 = PCA(barrios_sin_anomalos, scale.unit = TRUE, ncp = 4, graph = FALSE, quali.sup = "distrito")
 
 eig.val1 <- get_eigenvalue(res.pca1)
 eig.val2 <- get_eigenvalue(res.pca2)
@@ -221,7 +221,7 @@ Debido a esto, podemos determinar que la mejor opción es eliminar solo el barri
 Por tanto, eliminamos el barrio de "LA PUNTA" y realizamos el PCA con K = 4.
 
 ```{r}
-res.pca = PCA(barrios_sin_lapunta, scale.unit = TRUE, ncp = 4, graph = FALSE, quanti.sup = c("X0_15_años", "X16_64_años", "X65_o_más"), quali.sup = "distrito")
+res.pca = PCA(barrios_sin_lapunta, scale.unit = TRUE, ncp = 4, graph = FALSE, quali.sup = "distrito")
 ```
 
 ### SCR (Distancia al modelo)
@@ -260,7 +260,7 @@ Finalmente, visualizamos los resultados del PCA mediante gráficos que nos permi
 
 ```{r}
 fviz_pca_var(res.pca1, axes = c(1,2), repel = TRUE, col.var = "contrib",
-             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), labelsize = 2)
 ```
 
 ```{r}
