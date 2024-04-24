@@ -1,0 +1,287 @@
+---
+title: "PCA-Barrios"
+author: "Marc Hurtado"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(factoextra)
+library(FactoMineR)
+library(knitr)
+library(grid)
+library(gridExtra)
+```
+
+# PCA-Barrios
+
+## Carga de los datos
+
+En primer lugar, cargamos los datos del dataset de barrios y eliminamos las columnas que no son necesarias para el análisis, estas filas son:
+
+- barrio: Nombres del barrio, ya que están representados como índices.
+- geo_shape: Información geográfica del barrio, no aporta información relevante.
+- X: Columna de índices que no aporta información relevante.
+
+```{r}
+#Obtenemos los datos del dataset completo de barrios
+dataBarrios <- read.csv("../data/info_general_barrio_final.csv", sep = ",")
+
+#Reemplazamos los valores NA por 0
+dataBarrios[is.na(dataBarrios)] <- 0
+
+#Asignamos los nombres de los barrios como índices
+rownames(dataBarrios) <- dataBarrios$barrio
+
+#Eliminamos las columnas que no son necesarias para el análisis
+dataBarrios2 <- subset(dataBarrios, select = -c(barrio, geo_shape, X, X0_15_años, X16_64_años, X65_o_más))
+```
+
+## Análisis de Componentes Principales (PCA)
+
+Realizamos un análisis de componentes principales (PCA), mediante la libreria FactoMineR para reducir la dimensionalidad de los datos y visualizar la estructura de los barrios en un espacio de menor dimensión. 
+
+
+```{r}
+#Creación del PCA
+res.pca = PCA(dataBarrios2, scale.unit = TRUE, ncp = Inf, graph = FALSE, quali.sup = "distrito")
+
+#Obtenemos los valores propios
+eig.val <- get_eigenvalue(res.pca)
+
+#Mostramos el gráfico de los valores propios, que nos ayudara a seleccionar las componentes
+VPmedio = 100 * (1/nrow(eig.val))
+fviz_eig(res.pca, addlabels = TRUE) +
+  geom_hline(yintercept=VPmedio, linetype=2, color="red")
+```
+Al final seleccionamos 4 componentes principales, ya que a partir de la cuarta componente, ya que al partir de la cuarta componente, la varianza explicada es menor al 7'69%, la media si todas las componentes explicarán lo mismo. Además, con K = 4, es decir, cuatro componnetes principales, se explica el 75.16546% de la varianza total.
+
+```{r}
+K = 4
+kable(eig.val)
+```
+
+Ahora, una vez determinado el número de componnetes para el análisis, realizamos el PCA con K = 4.
+
+```{r}
+res.pca = PCA(dataBarrios2, scale.unit = TRUE, ncp = K, graph = FALSE, quali.sup = "distrito")
+```
+
+## Validación del PCA
+
+### Estadístico T2 de Hotelling
+
+Para determinar, que tan bien se ajusta el modelo PCA a los datos, calculamos el estadístico T2 de Hotelling, que nos permite identificar las observaciones anómalas en el conjunto de datos. Para esto debemos obtener los Scores y obtener las contribuciones. 
+
+
+```{r}
+misScores = res.pca$ind$coord[,1:K]
+miT2 = colSums(t(misScores**2)/eig.val[1:K,1])
+
+I = nrow(dataBarrios)
+
+F95 = K*(I**2 - 1)/(I*(I - K)) * qf(0.95, K, I-K)
+F99 = K*(I**2 - 1)/(I*(I - K)) * qf(0.99, K, I-K) #15.2
+
+plot(1:length(miT2), miT2, type = "p", xlab = "Barrios", ylab = "T2")
+abline(h = F95, col = "orange", lty = 2, lwd = 2)
+abline(h = F99, col = "red3", lty = 2, lwd = 2)
+```
+
+Gracias a este gráfico podemos ver que hay 4 barrios que son anómalos, ya que su valor de T2 es mayor al valor crítico F99. Estos barrios son: 
+
+```{r}
+anomalos=which(miT2>F99)
+
+kable(miT2[anomalos])
+```
+
+Para estudiar que variables causan que estos barrios sean anómalos, calculamos las contribuciones de las variables a las observaciones anómalas. Para esto, empleamos la función `contribT2` que calcula las contribuciones de las variables a las observaciones anómalas.
+
+```{r}
+contribT2 = function (X, scores, loadings, eigenval, observ, cutoff = 2) {
+  # X is data matrix and must be centered (or centered and scaled if data were scaled)
+  misScoresNorm = t(t(scores**2) / eigenval)
+  misContrib = NULL
+  for (oo in observ) {
+    print(rownames(misScores)[oo])
+    print(misScores[oo,])
+    misPCs = which(as.numeric(misScoresNorm[oo,]) > cutoff)
+    lacontri = sapply(misPCs, function (cc) (misScores[oo,cc]/eigenval[cc])*loadings[,cc]*X[oo,])
+    lacontri = rowSums((1*(sign(lacontri) == 1))*lacontri)
+    misContrib = cbind(misContrib, lacontri)
+  }
+  colnames(misContrib) = rownames(misScoresNorm[observ,])
+  return(misContrib)
+}
+```
+
+Para aplicar la función `contribT2`, primero debemos centrar y escalar los datos y calcular los loadings a partir de las coordenadas de las variables. Obtenemos los Loadings a partir de las coordenadas de las variables, ya que la librería FactoMineR nos devuelve los loadings ponderados por la importancia de cada componente principal.
+
+```{r}
+#Obtenemos la matriz de datos centrada y escalada
+barriosCE = subset(dataBarrios2, select=-c(distrito))
+barriosCE = scale(barriosCE, center = TRUE, scale = TRUE)
+X = as.matrix(barriosCE)
+
+# Calculamos los loadings a partir de las coordenadas de las variables
+misLoadings = sweep(res.pca$var$coord, 2, sqrt(res.pca$eig[1:K,1]), FUN="/")
+
+# Calculamos las contribuciones
+mycontrisT2 = contribT2(X = X, scores = misScores, loadings = misLoadings, 
+                        eigenval = eig.val[1:K,1], observ = which(miT2>F99),
+                        cutoff = 2)
+
+kable(mycontrisT2)
+```
+Aunque esta tabla de las contribuciones proporciona mucha información, es difícil de interpretar. Por lo tanto, visualizamos las contribuciones de las variables a las observaciones anómalas mediante un gráfico de barras.
+
+```{r}
+par(mar = c(10,2.3,3,1))
+barplot(mycontrisT2[,3],las=2, cex.names = 0.50,
+        main= "Observación: LA PUNTA")
+```
+
+Observamos que las variables que causan la anomalía en el barrio de "LA PUNTA" son la superficie del barrio, seguido del número de metros de carril bici. Por tanto, podemos determinar que la causa de que "LA PUNTA" sea un barrio anómalo es debido a su gran superficie.
+
+```{r}
+barplot(mycontrisT2[,2],las=2, cex.names = 0.5,
+        main = "Observación: EL GRAU")
+```
+
+Al igual que en el caso anterior, las variables que causan la anomalía en el barrio de "EL GRAU" son la superficie del barrio, seguido del número de metros de carril bici.
+
+```{r}
+barplot(mycontrisT2[,1],las=2, cex.names = 0.5,
+        main = "Observación: BENICALP") 
+``` 
+
+Para el barrio de "BENICALP", las variables que causan la anomalía son la población y el número de plazas de movilidad reducida. 
+
+```{r}
+barplot(mycontrisT2[,4],las=2, cex.names = 0.5,
+        main = "Observación: RUSSAFA")
+```
+
+Para el barrio de "RUSSAFA", las variables que causan la anomalía son el número de monumentos.
+
+
+Cuando se realiza un análisis de componentes principales, es importante identificar las observaciones anómalas, ya que estas pueden afectar la interpretación de los resultados. En este caso, hemos identificado 4 barrios anómalos, y hemos analizado las variables que causan la anomalía en cada uno de ellos. Este análisis nos permite comprender mejor la estructura de los datos y tomar decisiones informadas en función de los resultados obtenidos. Ahora debemos decidir si eliminamos estos barrios anómalos o si los mantenemos en el análisis. 
+
+Para ello, realizamos varios PCA con los barrios anómalos eliminados y comparamos los resultados con el PCA original. 
+
+Obtenemos los nuevos datasets pero con las observaciones anómalas eliminadas.
+
+```{r}
+barrios_sin_lapunta<-subset(dataBarrios2, !(rownames(dataBarrios2) == c("LA PUNTA")))
+barrios_sin_grandes<-subset(dataBarrios2, !(rownames(dataBarrios2) == c("LA PUNTA", "EL GRAU")))
+barrios_sin_anomalos<-subset(dataBarrios2, !(rownames(dataBarrios2) == c("LA PUNTA", "EL GRAU", "BENICALP", "RUSSAFA")))
+```
+
+Creamos los distintos PCAs
+
+```{r}
+res.pca1 = PCA(barrios_sin_lapunta, scale.unit = TRUE, ncp = 4, graph = FALSE, quali.sup = "distrito")
+res.pca2 = PCA(barrios_sin_grandes, scale.unit = TRUE, ncp = 4, graph = FALSE, quali.sup = "distrito")
+res.pca3 = PCA(barrios_sin_anomalos, scale.unit = TRUE, ncp = 4, graph = FALSE, quali.sup = "distrito")
+
+eig.val1 <- get_eigenvalue(res.pca1)
+eig.val2 <- get_eigenvalue(res.pca2)
+eig.val3 <- get_eigenvalue(res.pca3)
+
+VPmedio = 100 * (1/nrow(eig.val))
+```
+
+Para visualizar si mejora el modelo, podemos representar los gráficos de los valores propios de los distintos PCAs.
+
+```{r}
+p1 <- fviz_eig(res.pca1, addlabels = TRUE) +
+  geom_hline(yintercept=VPmedio, linetype=2, color="red")
+
+p2 <- fviz_eig(res.pca2, addlabels = TRUE) +
+  geom_hline(yintercept=VPmedio, linetype=2, color="red")
+
+p3 <- fviz_eig(res.pca3, addlabels = TRUE) +
+  geom_hline(yintercept=VPmedio, linetype=2, color="red")
+
+grid.arrange(p1, p2, p3, ncol=3)
+```
+De forma clara, se puede ver que para el primer PCA, en el cual, solo eliminamos "LA PUNTA", la varianza explicada es del 76.07290% (con K = 4) mientras que para los otros dos PCAs, la varianza explicada es del 75.16546%, la misma que explicaba el modelo sin eliminar nada. 
+
+Debido a esto, podemos determinar que la mejor opción es eliminar solo el barrio de "LA PUNTA" y mantener el resto de barrios anómalos en el análisis. Por distintas razones, la primera, es que la varianza explicada es mayor, y la segunda, es que el barrio "LA PUNTA", es el único barrio que sobrepasa por mucho el valor crítico de F99 (lo dobla), mientras que los otros barrios anómalos, no sobrepasan tanto el valor crítico. 
+
+Por tanto, eliminamos el barrio de "LA PUNTA" y realizamos el PCA con K = 4.
+
+```{r}
+res.pca = PCA(barrios_sin_lapunta, scale.unit = TRUE, ncp = 4, graph = FALSE, quali.sup = "distrito")
+```
+
+### SCR (Distancia al modelo)
+
+Finalmente, calculamos la distancia al modelo para identificar las observaciones que están más alejadas del modelo, estas observaciones serán aquellas que están mal explicadas por el modelo. Para ello, calculamos el cuadrado de los residuos y comparamos con el valor crítico de la distribución chi-cuadrado. 
+
+```{r}
+myE = X - misScores %*% t(misLoadings) 
+
+mySCR = rowSums(myE^2)
+
+g = var(mySCR)/(2*mean(mySCR))
+h = (2*mean(mySCR)^2)/var(mySCR)
+
+chi2lim = g*qchisq(0.95, df = h)#13.7
+chi2lim99 = g*qchisq(0.99, df = h)#22.03 
+
+
+plot(1:length(mySCR), mySCR, type = "l", main = "Distancia al modelo", ylab = "SCR", xlab = "Cereales")
+abline(h = chi2lim, col = "orange", lty = 2, lwd = 2)
+abline(h = chi2lim99, col = "red3", lty = 2, lwd = 2)
+```
+Observamos, que el valor crítico de la distribución chi-cuadrado para un nivel de significancia del 95% es de 13.7, mientras que para un nivel de significancia del 99% es de 22.03. Por tanto, las observaciones que tengan un valor de SCR mayor a 22.03 serán consideradas como anómalas. Como podemos ver solo hay una observación que supere el límite del 99% entrando dentro de la normal, ya que el 1% de error equivale a una observación anómala.
+
+Para ver con más detalle cual es esta observación anómala, mostramos el índice de la observación y su valor de SCR.
+
+```{r}
+raros = which(mySCR > chi2lim99)
+kable(mySCR[raros])
+```
+## Visualización de los resultados
+
+Finalmente, visualizamos los resultados del PCA mediante gráficos que nos permiten entender la estructura de los barrios en un espacio de menor dimensión. 
+
+### Gráfico de Variables
+
+```{r}
+fviz_pca_var(res.pca1, axes = c(1,2), repel = TRUE, col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), labelsize = 2)
+```
+
+```{r}
+fviz_pca_var(res.pca1, axes = c(3,4), repel = TRUE, col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+```
+### Gráfico de Individuos (Barrios)
+
+```{r}
+fviz_pca_ind(res.pca1, axes = c(1,2), geom = c("point", "text"), habillage = "distrito", repel = TRUE, labelsize = 2)
+```
+
+```{r}
+fviz_pca_ind(res.pca1, axes = c(3,4), geom = c("point", "text"), habillage = "distrito", repel = TRUE, labelsize = 2, label = "none")
+```
+### Biplot
+
+```{r}
+fviz_pca_biplot(res.pca1, label = "var", repel = TRUE, axes = c(1,2), habillage  = "distrito")
+```
+
+```{r}
+fviz_pca_biplot(res.pca1, label = "var", repel = TRUE, axes = c(3,4), habillage  = "distrito")
+```
