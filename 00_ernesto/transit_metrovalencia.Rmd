@@ -105,7 +105,7 @@ names(df_for_heatmap) <- c("weekday", "service_id", "frequency")
 ggplot(df_for_heatmap, aes(x = service_id, y = weekday, fill = frequency)) +
   geom_tile() + 
   geom_text(aes(label = round(frequency, 2)), color = "black", size = 3) + 
-  scale_fill_gradient(low = "white", high = "lightseagreen", name = "Frecuencia\nRelativa") +
+  scale_fill_gradient(low = "white", high = "mediumaquamarine", name = "Frecuencia\nRelativa") +
   labs(title = "Frecuencias Relativas de Service_ID por Columna",
        x = "Día de la Semana", y = "ID de Servicio") +
   theme_minimal() +
@@ -153,7 +153,7 @@ names(df_for_heatmap) <- c("weekday", "service_id", "frequency")
 ggplot(df_for_heatmap, aes(x = service_id, y = weekday, fill = frequency)) +
   geom_tile() + 
   geom_text(aes(label = round(frequency, 2)), color = "black", size = 3) + 
-  scale_fill_gradient(low = "white", high = "lightseagreen", name = "Frecuencia\nRelativa") +
+  scale_fill_gradient(low = "white", high = "mediumaquamarine", name = "Frecuencia\nRelativa") +
   labs(title = "Frecuencias Relativas de Service_ID por Columna",
        x = "Día de la Semana", y = "ID de Servicio") +
   theme_minimal() +
@@ -422,7 +422,7 @@ Para ver la distribución de metros por estación al día, se puede hacer un his
 
 ```{r}
 ggplot(metros_por_dia, aes(x = metros)) +
-  geom_histogram(fill = "lightseagreen", color = "black", bins = 30) +
+  geom_histogram(fill = "mediumaquamarine", color = "black", bins=10) +
   labs(title = "Distribución de metros por día por estación",
        x = "Número de metros",
        y = "Número de estaciones") +
@@ -468,22 +468,26 @@ metros_por_hora_linea_t <- metros_por_hora_linea %>%
 metros_por_hora_linea_t
 ```
 
-Se calculará el número de metros por día por línea y estación
+También se puede saber el número de metros por día por línea y estación
 
 ```{r}
 metros_por_dia_linea <- metros_por_hora_linea %>%
   group_by(route_short_name, stop_id, stop_name) %>%
   summarise(metros = sum(metros))
 
-metros_por_dia_linea
+head(metros_por_dia_linea)
 ```
 
 
 ## Grafo de estaciones y líneas de metro
 
+
+
 Se creará un grafo con las estaciones y las líneas de metro.
 
 Primero se creará un dataframe con las estaciones y las líneas de metro que pasan por cada estación
+
+### Preparación de los datos
 
 ```{r}
 lines_per_station <- trips_stops_details %>%
@@ -492,6 +496,8 @@ lines_per_station <- trips_stops_details %>%
 
 lines_per_station
 ```
+
+Ahora se pueden ver las líneas que pasan por cada estación.
 
 ```{r}
 head(lines_per_station$lines)
@@ -509,9 +515,7 @@ nodes <- lines_per_station %>%
 nodes
 ```
 
-Ahora voy a ver cómo se puede hacer para unir dos a dos las estaciones que pertenecen a la misma línea y que están en la misma secuencia de paradas.
-
-Primero se unirán las tablas de paradas y de rutas
+Veamos ahora qué estaciones pertenecen a cada línea. Primero se unirán las tablas de paradas y de rutas
 
 ```{r}
 stops_routes <- trips_stops_details %>%
@@ -533,7 +537,13 @@ stops_routes_ordered <- stops_routes %>%
 stops_routes_ordered
 ```
 
-Comprobar qué rutas son subconjuntos de otras
+Por ejemplo, podemos ver qué id corresponden a las paradas de la línea 1 - Castelló - Empalme
+
+```{r}
+stops_routes_ordered$stops[[1]]
+```
+
+Para no realizar trabajo de más, al haber muchas rutas que contienen las mismas paradas, se puede comprobar si hay rutas que son subconjuntos de otras.
 
 ```{r}
 is_subset <- rep(FALSE, nrow(stops_routes_ordered))
@@ -549,28 +559,28 @@ for (i in 1:nrow(stops_routes_ordered)) {
     }
   }
 }
-```
 
-```{r}
 stops_routes_ordered$is_subset <- is_subset
 ```
+
+Conseguidas las rutas que están contenidas en otras, nos quedaremos con las rutas __maximales__, es decir, las que no están contenidas en otras.
 
 ```{r}
 routes_non_subset <- stops_routes_ordered %>%
   filter(is_subset == FALSE)
 
-routes_non_subset
+head(routes_non_subset)
 ```
 
-Es el momento de obtener la estación de salida de esa ruta y la estación de llegada.
-Se crearán dos columnas en la tabla stops_routes_ordered con la estación de salida y la estación de llegada, que se obtienen a partir de dividir la columna `route_long_name` con " - ".
 ```{r}
-first <- routes_non_subset$stops[[1]][1]
-first
-
-gtfs$stops %>%
-  filter(stop_id == first)
+print(nrow(routes_non_subset))
 ```
+
+Hay 24 líneas __maximales__.
+
+
+Es el momento de obtener la estación de salida de cada ruta y la estación de fin.
+Se crearán dos columnas en la tabla stops_routes_ordered con la estación de salida y la estación de fin, que se obtienen a partir de dividir la columna `route_long_name` con " - ".
 
 
 ```{r}
@@ -578,37 +588,27 @@ routes_non_subset <- routes_non_subset %>%
   mutate(start_station = sapply(strsplit(route_long_name, " - "), function(x) x[2]),
          end_station = sapply(strsplit(route_long_name, " - "), function(x) x[3]))
 
-routes_non_subset
+head(routes_non_subset)
 ```
 
+Ahora se van a conseguir un trip para cada ruta maximal, de forma que se pueda obtener la secuencia de paradas de cada ruta.
 
 ```{r}
-first <- routes_non_subset$start_station[1]
-first
-
-gtfs$stops %>%
-  filter(stop_name == first)
-```
-
-Ahora voy a conseguir los trips que pasan por las rutas que no son subsets.
-
-```{r}
-trips_routes_non_subset <- gtfs$trips %>%
+trips_routes_non_subset <- trips %>%
   inner_join(routes_non_subset, by = "route_id") %>%
   select(route_id, service_id, trip_id, route_short_name, route_long_name, start_station, end_station, stops, n_stops)
 
-# drop duplicated rows with the same route_id
-
+# Dejar solo una fila para cada route_id
 trips_routes_non_subset <- trips_routes_non_subset %>%
   distinct(route_id, .keep_all = TRUE)
 
-trips_routes_non_subset
+head(trips_routes_non_subset)
 ```
+
+La forma de conseguir el horario de un trip es la siguiente:
 
 ```{r}
 trip_ejemplo <- trips_routes_non_subset$trip_id[1]
-
-
 
 trip_ejemplo_completo <- gtfs$stop_times %>%
   filter(trip_id == trip_ejemplo) %>%
@@ -619,7 +619,7 @@ trip_ejemplo_completo <- gtfs$stop_times %>%
 trip_ejemplo_completo
 ```
 
-Ahora quiero crear pares de paradas consecutivas en cada trip, con sus correspondientes horas de llegada.
+Ahora se van crear pares de paradas consecutivas en cada trip, con sus correspondientes horas de llegada. Además, se incluirá la duración del viaje restando la hora de llegada de la segunda parada con la hora de llegada de la primera parada.
 
 ```{r}
 pares_paradas <- trip_ejemplo_completo %>%
@@ -632,7 +632,6 @@ pares_paradas <- trip_ejemplo_completo %>%
               rename(stop_id_2 = stop_id, stop_name_2 = stop_name, arrival_time_2 = arrival_time))
 
 # crear una columna con la duración del trayecto
-
 pares_paradas <- pares_paradas %>%
   mutate(duration = as.numeric(difftime(arrival_time_2, arrival_time_1, units = "mins")))
 
@@ -642,24 +641,7 @@ pares_paradas
 Ahora hay que realizar este proceso para todos los trips que se han conseguido antes.
 
 ```{r}
-for (i in 1:nrow(trips_routes_non_subset)) {
-  trip_id <- trips_routes_non_subset$trip_id[i]
-  print(trip_id)
-  
-  trip_completo <- gtfs$stop_times %>%
-    filter(trip_id == trip_id) 
-  
-  print(trip_completo)
-  break
-}  
-```
-
-
-
-```{r}
 all_stops_pairs <- list()
-
-length(all_stops_pairs)
 
 for (i in 1:nrow(trips_routes_non_subset)) {
   trip_i <- trips_routes_non_subset$trip_id[i]
@@ -679,8 +661,7 @@ for (i in 1:nrow(trips_routes_non_subset)) {
                 slice(2:nrow(.)) %>%
                 rename(stop_id_2 = stop_id, stop_name_2 = stop_name, arrival_time_2 = arrival_time))
   
-# crear una columna con la duración del trayecto
-
+  # crear una columna con la duración del trayecto
   pares_paradas <- pares_paradas %>%
     mutate(duration = as.numeric(difftime(arrival_time_2, arrival_time_1, units = "mins")))
   
@@ -688,10 +669,10 @@ for (i in 1:nrow(trips_routes_non_subset)) {
 }
 
 complete_trips <- bind_rows(all_stops_pairs)
-head(complete_trips)
+tail(complete_trips)
 ```
 
-
+En este momento tenemos muchas filas con los mismos pares de paradas, ya que pese a haber eliminado las rutas que estaban contenidas en otras, hay rutas que comparten paradas. Por lo tanto, se eliminarán las filas duplicadas.
 
 ```{r}
 # delete duplicated rows
@@ -714,64 +695,73 @@ complete_trips <- complete_trips %>%
 complete_trips
 ```
 
-
-
-Con el dataframe `stop_pairs` se puede crear el grafo con las estaciones y las líneas de metro.
+Con el dataframe conseguido tenemos la información suficiente para puede crear el grafo con las estaciones y las líneas de metro.
 
 ```{r}
 node_pairs <- complete_trips %>%
   select(stop_id_1, stop_id_2) 
 ```
 
+Para no tener nodos duplicados, se eliminará una de las direcciones en los pares de nodos.
+
 ```{r}
 # drop duplicates from complete_trips
 distinct_nodes <- complete_trips %>%
   distinct(stop_id_1, .keep_all = TRUE)
-distinct_nodes
+
+nrow(distinct_nodes)
 ```
 
+### Construcción del grafo
 
-
+Se usará la librería igraph para construir un grafo que contiene la red de metro.
 
 ```{r}
 library(igraph)
 
 g <- graph_from_data_frame(node_pairs, directed = TRUE)
 
-E(g)$weight <- complete_trips$duration
 V(g)$stop_name <- distinct_nodes$stop_name_1
-V(g)$lat <- distinct_nodes$lat_1
-V(g)$lon <- distinct_nodes$lon_1
-V(g)$zone <- distinct_nodes$zone_id.x
+E(g)$weight <- complete_trips$duration
 ```
 
-Hay que añadir un trasbordo entre las paradas Alacant y Xàtiva (bidireccional) de 5 minutos y uno igual para las paradas de Alacant y Bailén de 3 minutos.
+Hay que añadir un trasbordo entre las paradas Alacant y Xàtiva (bidireccional) de 5 minutos y uno igual para las paradas de Alacant y Bailén de 3 minutos, ya que en la realidad hay un trasbordo entre ellas y en el dataset no aparece porque se hace andando.
 
 ```{r}
 s1 = V(g)[stop_name == "Alacant"]
 s2 = V(g)[stop_name == "Xàtiva"]
 s3 = V(g)[stop_name == "Bailén"]
 
+
 t1 = edge(s1, s2)
-t1$weight = 5
-
 t2 = edge(s1, s3)
-t2$weight = 3
-
 t3 = edge(s2, s1)
-t3$weight = 5
-
 t4 = edge(s3, s1)
-t4
-t4$weight = 3
 
 # añadir todos los trasbordos al grafo
 g = add_edges(g, c(t1, t2, t3, t4))
+
+# poner el peso a cada trasbordro
+E(g)$weight[tail(seq_along(E(g)$weight), 4)] <- c(5, 3, 5, 3)
+```
+
+Ahora se añadirán los atributos de latitud y longitud a los nodos, así como la zona en la que se encuentra en la parada.
+
+```{r}
+V(g)$lat <- distinct_nodes$lat_1
+V(g)$lon <- distinct_nodes$lon_1
+V(g)$zone <- distinct_nodes$zone_id.x
 ```
 
 
+
+### Estudio de las propiedades de grafo
+
+Ahora que tenemos los datos en forma de grafo, podemos analizar métricas de la red de metro que antes eran imposibles o más difíciles de conseguir.
+
+Distribución de grado (entrada + salida)
+
 ```{r}
-# study degree distribution
 degree_distribution <- degree(g)
 
 hist(degree_distribution, breaks = 20, main = "Degree Distribution", xlab = "Degree")
@@ -782,25 +772,22 @@ print(V(g)[which.max(degree_distribution)]$stop_name)
 print(V(g)[neighbors(g, which.max(degree_distribution))]$stop_name)
 ```
 
+Ahora se puede conseguir el camino más corto de una estación cualquiera hasta otra.
+
 ```{r}
 # shortet path from benimaclet to sant isidre
-#s1 <- V(g)[stop_name == "Sant Isidre"]
-#s2 <- V(g)[stop_name == "Àngel Guimerà"]
-#
-#shortest_path <- shortest_paths(g, from = s2, to = s1)
-#
-## get the path
-#shortest_path$vpath[[1]]$stop_name
+s1 <- V(g)[stop_name == "Sant Isidre"]
+s2 <- V(g)[stop_name == "Àngel Guimerà"]
+
+shortest_path <- shortest_paths(g, from = s2, to = s1)
+
+# get the path
+shortest_path$vpath[[1]]$stop_name
 ```
 
-
-Ahora falta incluir qué líneas de metro pasan por cada estación.
+Falta incluir qué líneas de metro pasan por cada estación. Se usará el df lines_per_station que ya se ha creado antes.
 
 ```{r}
-lines_per_station <- trips_stops_details %>%
-  group_by(stop_id, stop_name) %>%
-  summarise(lines = list(unique(route_short_name)), n_lines = length(unique(route_short_name)), .groups = "drop")
-
 # sort the same as the graph
 distinct_nodes <- distinct_nodes %>%
   inner_join(lines_per_station, by = c("stop_id_1" = "stop_id")) %>%
@@ -815,7 +802,7 @@ V(g)$lines <- distinct_nodes$lines
 
 ```
 
-Ahora falta poner en qué líneas está cada par de nodos (ruta entre uno y otro). Para esto, se usará la intersección entre las líneas que están en un nodo y las del siguiente
+Ahora solo queda poner en qué líneas está cada par de nodos (ruta entre uno y otro). Para esto, se usará la intersección entre las líneas que están en un nodo y las del siguiente
 
 
 ```{r}
@@ -834,25 +821,22 @@ for (i in 1:length(E(g))) {
 }
 ```
 
+Ya que hemos conseguido incluir las líneas en el grafo, veamos el recorrido de una, por ejemplo, la 4.
+
 ```{r}
-# get the subgraph of line 4 if any line 4 in station$lines[[i]]
-line_4 <- rep(NA, length(V(g))) 
+is_line_4 <- rep(NA, length(V(g))) 
 
 for (i in 1:length(V(g))) {
-  line_4[i] <- "4" %in% V(g)$lines[[i]]
+  is_line_4[i] <- "4" %in% V(g)$lines[[i]]
 }
 ```
 
 
 ```{r}
+line_4_graph <- induced_subgraph(g, is_line_4)
 
-line_4 <- induced_subgraph(g, line_4)
-
-plot(line_4, vertex.label = V(line_4)$stop_name, edge.label = E(line_4)$lines)
-```
-
-```{r}
-V(line_4)[1]$stop_name
+# plot the graph
+plot(line_4_graph, vertex.label = V(line_4_graph)$stop_name, vertex.size = 10, edge.width = 1, edge.arrow.size = 0.5, layout = layout_nicely, main = "Line 4")
 ```
 
 Vamos a comprobar que el grafo tiene una sola componente conexa.
@@ -872,7 +856,6 @@ Las medidas a conseguir son:
 - Grado de entrada
 - Grado de salida
 - Betweenness (intermediación)
-- Closeness (cercanía)
 
 ```{r}
 # grado de entrada
