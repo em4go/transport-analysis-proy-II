@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-hospitales <- read.csv(file = "/00_marc/dataPre/hospitales.csv", sep = ',')
+hospitales <- read.csv(file = "00_marc/dataPre/hospitales.csv", sep = ',')
 ```
 
 ```{r}
