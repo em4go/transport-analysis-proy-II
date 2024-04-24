@@ -91,6 +91,7 @@ La forma de la que se maximiza la cantidad de barrios sin valores faltantes es e
 
 
 ```{r proporción_faltantes}
+'
 df2 <- df
 df2$paradas_emt[is.na(df2$paradas_emt)] <- 0
 df2$paradas_metro[is.na(df2$paradas_metro)] <- 0
@@ -103,7 +104,7 @@ df2 <- df2 %>% select(-c("paradas_emt", "plazas_parkings", "paradas_metro"))
 
 num_faltantes <- cbind(df2[,1], n_faltantes = df2 %>% 
                          apply(1, function(x) sum(is.na(x))))
-
+'
 ```
 
 De esta forma es como más se consigue un mayor número de barrios con ninguna variable con valores faltantes, con una total de `r nrow(num_faltantes[which(num_faltantes$n_faltantes == 0),])`.
