@@ -91,8 +91,9 @@ La forma de la que se maximiza la cantidad de barrios sin valores faltantes es e
 
 
 ```{r proporción_faltantes}
-'
+
 df2 <- df
+'
 df2$paradas_emt[is.na(df2$paradas_emt)] <- 0
 df2$paradas_metro[is.na(df2$paradas_metro)] <- 0
 
@@ -215,9 +216,32 @@ Con ambos gráficos comprobamos que es un problema general de los distritos. Sob
 
 Teniendo esto en cuenta, decidimos eliminar ambos distritos de nuestra base de datos.
 
+También se han dividido todas las variables numéricas por su
+
 ```{r base_final}
 df_final <- df2[which(df2$distrito != "POBLATS DEL NORD" & df2$distrito != "POBLATS DEL SUD"),]
+df_numerico <- df_final %>% select(-c("barrio", "distrito", "geo_shape"))
+#Dividimos las variables por la superficie
+p <- df_numerico %>% apply(2, function(x) x / df_numerico$superficie_barrio)
+p <- data.frame(p) %>% select(-superficie_barrio)
 
+df_final <- cbind(barrio = df_final$barrio, p, distrito = df_final$distrito,
+                  superficie_barrio = df_final$superficie_barrio)
+```
+
+
+# Creación de los índices
+
+Vamos a proceder a crear distintos índices que caractericen a cada barrio.
+
+## Cantidad de servicios ofrecidos por $m^2$
+
+
+
+
+
+
+```{r write_data}
 write_parquet(df_final, "../data/info_general_barrio_final.parquet")
 write.csv(df_final, "../data/info_general_barrio_final.csv")
 
