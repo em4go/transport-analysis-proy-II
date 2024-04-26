@@ -7,12 +7,122 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(sf)
+library(jsonlite)
+library(arrow)
+library(knitr)
+library(ggplot2)
 ```
 
 ```{r}
-hospitales <- read.csv(file = "00_marc/dataPre/hospitales.csv", sep = ',')
+info_barrios <- read.csv(file = "../data/info_general_barrio_final.csv")
+
+data_barrios <- read.csv2("../data/barrios_valencia.csv", sep = ";")
+
+hospitales <- read.csv2(file = "dataPre/hospitales.csv")
+hospitales <- subset(hospitales, Tipo == "Hospital")
+hospitales <- subset(hospitales, select = c("Barrio", "Tipo"))
+hospitales$count <- 1
+colnames(hospitales) <- c("BARRIO", "TIPOHOS", "COUNT")
+
+
+cargadores_electricos <- read.csv2(file = "dataPre/cargadores_electricos.csv")
+cargadores_electricos <- tidyr::separate(cargadores_electricos, geo_point_2d, into = c("Latitude", "Longitude"), sep = ",")
+cargadores_electricos$Latitude <- as.numeric(cargadores_electricos$Latitude)
+cargadores_electricos$Longitude <- as.numeric(cargadores_electricos$Longitude)
+
+alquiler_barrio <- read.csv2(file = "dataPre/precio-alquiler-vivienda.csv")
+alquiler_barrio <- subset(alquiler_barrio, select = c("BARRIO", "Precio_2022..Euros.m2."))
+colnames(alquiler_barrio) <- c("BARRIO", "Precio_alquiler/m2")
+
+venta_barrio <- read.csv2(file = "dataPre/precio-de-compra-en-idealista.csv")
+venta_barrio <- subset(venta_barrio, select = c("BARRIO", "Precio_2022..Euros.m2."))
+colnames(venta_barrio) <- c("BARRIO", "Precio_venta/m2")
+
 ```
 
 ```{r}
+info_pisos <- merge(x = alquiler_barrio, y = venta_barrio, by = "BARRIO", all = TRUE)
 ```
+
+```{r}
+obtener_poligonos <- function(df){
+  polygons <- lapply(df$geo_shape, function(x) st_read(x, quiet = TRUE))
+  
+  # Combina todos los objetos sf en un solo objeto sf
+  polygons_barrios <- do.call(rbind, polygons)
+  
+  polygons_barrios$Nombre <- df$Nombre
+  return(polygons_barrios)
+}
+```
+
+```{r}
+poligons_barrios <- obtener_poligonos(data_barrios)
+poligons_barrios
+```
+```{r}
+cargadores <- data.frame()
+# Iterate over each plaza
+for (pl in 1:nrow(cargadores_electricos)) {
+  point <- st_point(c(as.numeric(cargadores_electricos$Longitude[pl]), as.numeric(cargadores_electricos$Latitude[pl])), dim = "XY")
+  #longitud y latitud porque los poligonos de los barrios estan en ese orden
+  b <- unlist(st_within(point, poligons_barrios$geometry)) 
+  
+  if (length(b) > 0) {
+    cargadores <- rbind(cargadores, data.frame(
+      id = cargadores_electricos$OBJECTID[pl],
+      toma = cargadores_electricos$Toma[pl],
+      BARRIO = poligons_barrios$Nombre[b]
+    ))
+  } else {
+    cargadores <- rbind(cargadores, data.frame(
+      id = NA,
+      toma = NA,
+      BARRIO = "OTRO"
+    ))
+  }
+}
+resultado_cargadores <- aggregate(toma ~ BARRIO, data = cargadores, FUN=sum)
+```
+
+```{r}
+resultado_hos <- aggregate(COUNT ~ BARRIO, data = hospitales, FUN=sum)
+unicos <- merge(x = resultado_cargadores, y = resultado_hos, by = "BARRIO", all = TRUE)
+```
+
+```{r}
+nuevo_data <- merge(x = info_pisos, y = unicos, by = "BARRIO", all = TRUE)
+colnames(nuevo_data) <- c("BARRIO", "Precio_alquiler/m2", "Precio_venta/m2", "Cargadores", "Hospitales")
+```
+
+```{r}
+a <- subset(nuevo_data, BARRIO == "ELS ORRIOLS")
+a
+```
+
+```{r}
+rownames(info_barrios) <- info_barrios$barrio
+info_barrios <- subset(info_barrios, select = c("metros_carril_bici", "estaciones_valenbisi", 
+                         "Total_poblacion", "X0_15_años", "X16_64_años", "X65_o_más", 
+                         "paradas_emt", "paradas_metro", "plazas_mob", "paradas_taxis", 
+                         "plazas_parkings", "superficie_zonas_verdes", "precio_alquiler", 
+                         "amenity", "monuments", "shop", "sport", 
+                         "superficie_barrio"))
+
+desBARRIOS <- scale(info_barrios, center = TRUE, scale = TRUE)
+desBARRIOS[is.na(desBARRIOS)] <- 0
+```
+
+```{r}
+desBARRIOS
+```
+
+
+
+
+
+
 
