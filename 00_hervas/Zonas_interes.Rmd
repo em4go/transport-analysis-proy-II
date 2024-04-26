@@ -53,7 +53,7 @@ Primero cargamos los datos de las dimensiones de cada barrio de Valencia, y medi
 
 ```{r pressure, echo=FALSE}
 
-data_barrios <- read.csv2("./data/barrios_valencia.csv", sep = ";")
+data_barrios <- read.csv2("../data/barrios_valencia.csv", sep = ";")
 
 obtener_poligonos <- function(df){
   polygons <- lapply(df$geo_shape, function(x) st_read(x, quiet = TRUE))
@@ -273,6 +273,93 @@ resultado_shop<- resultado_shop[resultado_shop$nombre != "OTRO", ]
 ```
 
 
+```{r}
+consulta_stadium <- vlc_bb%>% 
+  opq() %>%
+  add_osm_feature(key = 'building', value = 'stadium') 
+datos_stadium <- osmdata_sf(consulta_stadium)
+lugares_stadium<-datos_stadium$osm_points
+ubicaciones_stadium <- st_coordinates(lugares_stadium)
+ubicaciones_stadium
+
+
+data_stadium <- data.frame(
+  longitud = ubicaciones_stadium[, "X"],
+  latitud = ubicaciones_stadium[, "Y"]
+)
+data_stadium
+
+```
+
+
+```{r}
+stadium<-data.frame()
+for (pt in 1:nrow(data_stadium)) {
+  point <- st_point(c(as.numeric(data_stadium$longitud[pt]), as.numeric(data_stadium$latitud[pt])), dim = "XY")
+  #longitud y latitud porque los poligonos de los barrios estan en ese orden
+  b <- unlist(st_within(point, poligonos_barrios$geometry)) 
+  
+  if (length(b) > 0) {
+    stadium <- rbind(stadium, data.frame(
+      barrio = poligonos_barrios$Nombre[b]
+    ))
+  } else {
+    stadium <- rbind(stadium, data.frame(
+      barrio = "OTRO"
+    ))
+  }
+}
+```
+
+```{r}
+stadium <- subset(stadium, !duplicated(barrio))
+stadium <- subset(stadium, barrio != 'OTRO')
+resultado_stadium <- stadium %>% mutate(stadium = 1)
+resultado_stadium
+```
+
+```{r}
+consulta_university <- vlc_bb%>% 
+  opq() %>%
+  add_osm_feature(key = 'building', value = 'university') 
+datos_university <- osmdata_sf(consulta_university)
+lugares_university<-datos_university$osm_points
+ubicaciones_university <- st_coordinates(lugares_university)
+
+
+
+data_university <- data.frame(
+  longitud = ubicaciones_university[, "X"],
+  latitud = ubicaciones_university[, "Y"]
+)
+```
+
+```{r}
+university<-data.frame()
+for (pt in 1:nrow(data_university)) {
+  point <- st_point(c(as.numeric(data_university$longitud[pt]), as.numeric(data_university$latitud[pt])), dim = "XY")
+  #longitud y latitud porque los poligonos de los barrios estan en ese orden
+  b <- unlist(st_within(point, poligonos_barrios$geometry)) 
+  
+  if (length(b) > 0) {
+    university <- rbind(university, data.frame(
+      barrio = poligonos_barrios$Nombre[b]
+    ))
+  } else {
+    university <- rbind(university, data.frame(
+      barrio = "OTRO"
+    ))
+  }
+}
+```
+
+```{r}
+university <- subset(university, !duplicated(barrio))
+university <- subset(university, barrio != 'OTRO')
+resultado_university <- university %>% mutate(university = 1)
+
+
+```
 ##Creacion de dataset
 
 Creamos datasets de tipo parquet de los dataframes creados anteriormente.
