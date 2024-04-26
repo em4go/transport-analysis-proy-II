@@ -235,6 +235,29 @@ gtfs$trips %>%
 
 El número de buses de los días laborales es menor que el de los sábados y este menor que el de los domingos y festivos. LAB < SAB < FES
 
+Resulta que en el dataset de trips no aparecen los servicios alternativos, como los de verano, a excepción del servicio L38.
+
+Veamos qué rutas están contenidas en el servicio L38.
+
+```{r}
+trips_L38 <- gtfs$trips %>%
+  filter(service_id == "L38-810" | service_id == "L38-755")
+
+unique(trips_L38$route_id)
+```
+
+Solo aparece una ruta en este servicio, de id = 38. Se corresponde con la línea 98 de bus. Es posible que esté en un servicio distinto porque no cambia a lo largo de la semana ni en los festivos.
+
+Ahora vamos a ver cuántas rutas tiene cada servicio
+
+```{r}
+gtfs$trips %>%
+  group_by(service_id) %>%
+  summarise(n_routes = n_distinct(route_id)) %>%
+  arrange(desc(n_routes))
+```
+
+
 Observemos también cuáles son las rutas más frecuentes:
 
 ```{r}
@@ -252,7 +275,7 @@ Será necesario unir los datasets de rutas y líneas para poder obtener el núme
 ```{r}
 
 # merge the routes with the trips
-trips_routes <- trips %>%
+trips_routes <- gtfs$trips %>%
   inner_join(gtfs$routes, by = "route_id")
 
 trips_routes %>%
@@ -261,6 +284,27 @@ trips_routes %>%
   arrange(desc(frequency)) %>%
   print(n = 10)
 ```
+
+Ahora vamos a ver cuáles son todas las rutas que hay y cuántos servicios las incluyen hay para cada una.
+
+```{r}
+unique_routes <- trips_routes %>%
+  distinct(service_id, route_short_name, route_long_name) %>%
+  arrange(route_short_name)
+unique_routes
+```
+
+Vamos a ver cuáles son los servicios que incluyen cada ruta.
+
+```{r}
+unique_routes <- trips_routes %>%
+  group_by(service_id) %>%
+  distinct(route_short_name, route_long_name) %>%
+  arrange(route_short_name)
+
+unique_routes
+```
+
 
 Para conseguir cuántas paradas hay por cada ruta y cuáles son:
 
