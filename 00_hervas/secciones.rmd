@@ -1,0 +1,79 @@
+---
+title: "Secciones_Valencia"
+author: "ALEJANDRO"
+date: "2024-04-26"
+output: 
+    html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(arrow)
+
+```
+
+```{r}
+data<- read.csv2("seccions-censals-secciones-censales.csv")
+data_original<-data
+data$Código.Sección <- sprintf("%03d", data$Código.Sección)
+data$Código.Distrito <- sprintf("%02d", data$Código.Distrito)
+data$data_id_seccion<-paste0(data$Código.Distrito, data$Código.Sección)
+
+data[, c("latitud", "longitud")] <- as.data.frame(do.call(rbind, lapply(strsplit(data$geo_point_2d, ","), function(x) x)))
+
+secciones<-subset(data, select=c("data_id_seccion" , "latitud", "longitud"))
+
+```
+
+```{r}
+data_barrios <- read.csv2("../data/barrios_valencia.csv", sep = ";")
+
+obtener_poligonos <- function(df){
+  polygons <- lapply(df$geo_shape, function(x) st_read(x, quiet = TRUE))
+  
+  # Combina todos los objetos sf en un solo objeto sf
+  polygons_barrios <- do.call(rbind, polygons)
+  
+  polygons_barrios$Nombre <- df$Nombre
+  return(polygons_barrios)
+}
+
+poligonos_barrios<-obtener_poligonos(data_barrios)
+```
+
+```{r}
+barrio<-c()
+for (i in 1:nrow(secciones)) {
+  point <- st_point(c(as.numeric(secciones$longitud[i]), as.numeric(secciones$latitud[i])), dim = "XY")
+  
+  b <- unlist(st_within(point, poligonos_barrios$geometry)) 
+  
+  if (length(b) > 0) {
+    
+      barrio = c(barrio,poligonos_barrios$Nombre[b])
+  
+  } else {
+          
+    barrio = c(barrio,'OTRO')
+
+  }
+}
+```
+
+```{r}
+
+secciones<-subset(secciones, select=c("data_id_seccion" , "Barrio"))
+
+```
+
+```{r}
+write_parquet(secciones, "secciones_barrio.parquet")
+
+```
+
