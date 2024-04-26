@@ -5,7 +5,7 @@ output:
   html_document:
     toc: true
     number_sections: false
-    toc_depth: 2
+    toc_depth: 3
     toc_float:
       collapsed: false
       smooth_scroll: true
@@ -870,7 +870,28 @@ V(g)$betweenness <- betweenness(g)
 # closeness
 V(g)$closeness <- closeness(g)
 
+# suma de grados de entrada y salida
+V(g)$degree <- degree(g)
+```
 
+
+```{r}
+hist(V(g)$betweenness, main = "Betweenness Distribution", xlab = "Betweenness")
+```
+
+```{r}
+hist(V(g)$closeness, main = "Closeness Distribution", xlab = "Closeness")
+```
+
+```{r}
+hist(V(g)$in_degree, main = "Degree Distribution", xlab = "Degree")
+```
+
+```{r}
+```
+
+
+```{r}
 ```
 
 
