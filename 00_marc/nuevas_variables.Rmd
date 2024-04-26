@@ -41,6 +41,11 @@ venta_barrio <- read.csv2(file = "dataPre/precio-de-compra-en-idealista.csv")
 venta_barrio <- subset(venta_barrio, select = c("BARRIO", "Precio_2022..Euros.m2."))
 colnames(venta_barrio) <- c("BARRIO", "Precio_venta/m2")
 
+stadium <- read_parquet("../00_hervas/stadium.parquet")
+university <- read_parquet("../00_hervas/university.parquet")
+section <- read_parquet("../00_hervas/secciones_barrio.parquet") # 
+
+info_dinero <- read_parquet("dataTratada/info_dinero.parquet")
 ```
 
 ```{r}
@@ -74,7 +79,7 @@ for (pl in 1:nrow(cargadores_electricos)) {
   if (length(b) > 0) {
     cargadores <- rbind(cargadores, data.frame(
       id = cargadores_electricos$OBJECTID[pl],
-      toma = cargadores_electricos$Toma[pl],
+      toma = 1,
       BARRIO = poligons_barrios$Nombre[b]
     ))
   } else {
@@ -85,39 +90,82 @@ for (pl in 1:nrow(cargadores_electricos)) {
     ))
   }
 }
-resultado_cargadores <- aggregate(toma ~ BARRIO, data = cargadores, FUN=sum)
+resultado_cargadores <- aggregate(toma ~ BARRIO, data = cargadores, FUN=unique)
 ```
 
 ```{r}
-resultado_hos <- aggregate(COUNT ~ BARRIO, data = hospitales, FUN=sum)
+resultado_hos <- aggregate(COUNT ~ BARRIO, data = hospitales, FUN=unique)
 unicos <- merge(x = resultado_cargadores, y = resultado_hos, by = "BARRIO", all = TRUE)
+unicos <- merge(x = unicos, y = university, by.x = "BARRIO", by.y = "barrio", all = TRUE)
+unicos <- merge(x = unicos, y = stadium, by.x = "BARRIO", by.y = "barrio", all = TRUE)
+
+colnames(unicos) <- c("BARRIO", "Cargadores", "Hospitales", "Universidad", "Estadio")
 ```
 
 ```{r}
-nuevo_data <- merge(x = info_pisos, y = unicos, by = "BARRIO", all = TRUE)
-colnames(nuevo_data) <- c("BARRIO", "Precio_alquiler/m2", "Precio_venta/m2", "Cargadores", "Hospitales")
+#nuevo_data <- merge(x = info_pisos, y = unicos, by = "BARRIO", all = TRUE)
+
+dinero_barrio <- merge(x = info_dinero, y = section, by.x = "SECCIONES", by.y = "data_id_seccion", all.x = TRUE)
+
+resultado_renta <- aggregate(RENTA_BRUTA ~ Barrio, data = dinero_barrio, FUN=mean)
+resultado_salario <- aggregate(SALARIO ~ Barrio, data = dinero_barrio, FUN=mean)
+
+ricos <- merge(x = resultado_renta, y = resultado_salario, by = "Barrio", all = TRUE)
+ricos <- merge(x = ricos, y = info_pisos, by.x = "Barrio",by.y = "BARRIO", all = TRUE)
 ```
 
 ```{r}
-a <- subset(nuevo_data, BARRIO == "ELS ORRIOLS")
-a
+p1 <- merge(x = info_barrios, y = ricos, by.x = "barrio", by.y = "Barrio", all.x = TRUE)
+p1 <- merge(x = p1, y = unicos, by.x = "barrio", by.y = "BARRIO", all.x = TRUE)
+p1 <- select(p1, -c("X", "precio_alquiler"))
+colnames(p1)
 ```
+UNIVERSIDAD, ESTADIO, HOSPITALES, CARGADORES
+
+El dataset FINAL ->
+
+- Paradas de metro -> "paradas_metro"
+- Paradas EMT -> "paradas_emt" 
+- Paradas Valenbisi -> "estaciones_valenbisi"
+
+CENTRADO Y ESCALADO
+
+- Otros servicios -> c("plazas_mob", "paradas_taxis", "plazas_parking", "amenity", ¿"monuments"?, "shop", "sport") suma de todos ya pàrtido por m2 scalados
+- Indice de ricos -> c("RENTA_BRUTA", "SALARIO", "Precio_alquiler/m2", "Precio_venta/m2") suma de todas escaladas y / max 
+- Servicios_únicos 0/1 -> c("Universidad", "Estadio", "Hospitales", "Cargadores") suma de todos 
+- ecofriendly -> c("metros_carril_bici", "superficie_zonas_verdes") suma de todos escalados
+
 
 ```{r}
-rownames(info_barrios) <- info_barrios$barrio
-info_barrios <- subset(info_barrios, select = c("metros_carril_bici", "estaciones_valenbisi", 
-                         "Total_poblacion", "X0_15_años", "X16_64_años", "X65_o_más", 
-                         "paradas_emt", "paradas_metro", "plazas_mob", "paradas_taxis", 
-                         "plazas_parkings", "superficie_zonas_verdes", "precio_alquiler", 
-                         "amenity", "monuments", "shop", "sport", 
-                         "superficie_barrio"))
+rownames(p1) <- p1$barrio
+info_barrios_para_escalar <- select(p1, -c("barrio", "Universidad", "Estadio", "Hospitales", "Cargadores", "X0_15_años", "X16_64_años", "X65_o_más", "paradas_metro", "paradas_emt", "estaciones_valenbisi", "superficie_barrio", "distrito", "Total_poblacion"))
+info_barrios_para_escalar$"Precio_venta/m2" <- as.numeric(info_barrios_para_escalar$"Precio_venta/m2")
+info_barrios_para_escalar$"Precio_alquiler/m2" <- as.numeric(info_barrios_para_escalar$"Precio_alquiler/m2")
+clases_columnas <- lapply(info_barrios_para_escalar, class)
 
-desBARRIOS <- scale(info_barrios, center = TRUE, scale = TRUE)
-desBARRIOS[is.na(desBARRIOS)] <- 0
+barriosCE <- scale(info_barrios_para_escalar, center = TRUE, scale = TRUE)
+colnames(barriosCE)
+barriosCE <- as.data.frame(barriosCE)
+
+barriosCE[is.na(barriosCE)] <- 0
+
+otros_servicios <- barriosCE$plazas_mob + barriosCE$paradas_taxis + barriosCE$plazas_parking + barriosCE$amenity + barriosCE$shop + barriosCE$sport + barriosCE$monuments
+
+otros_servicios
+
+indice_ricos1 <- (barriosCE$RENTA_BRUTA + barriosCE$SALARIO + barriosCE$"Precio_alquiler/m2" + barriosCE$"Precio_venta/m2")
+indice_ricos <- indice_ricos1 / max(indice_ricos1)
+
+indice_ricos
+
+eco_friendly <- barriosCE$metros_carril_bici + barriosCE$superficie_zonas_verdes
+
+eco_friendly
 ```
-
 ```{r}
-desBARRIOS
+barrios_final <- cbind(p1, otros_servicios, indice_ricos, eco_friendly)
+
+barrios_indices <- data.frame(barrios_final$barrio, barrios_final$otros_servicios, barrios_final$indice_ricos, barrios_final$eco_friendly, barrios_final$Universidad, barrios_final$Estadio, barrios_final$Hospitales, barrios_final$Cargadores, barrios_final$paradas_metro, barrios_final$paradas_emt, barrios_final$estaciones_valenbisi)
 ```
 
 

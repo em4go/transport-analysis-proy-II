@@ -1,0 +1,56 @@
+---
+title: "Renta"
+author: "Marc Hurtado"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(arrow)
+```
+
+
+```{r}
+data <- read.csv2("../00_hervas/Renta_valencia.csv")
+data <- data.frame(data)
+data$Total <- as.numeric(gsub(",00", "", data$Total))
+
+data$Total <- data$Total * 1000
+data$Total <- as.numeric(data$Total)
+```
+
+```{r}
+data$Secciones[data$Secciones == ""] <- NA
+data_NA <- data[!is.na(data$Secciones),]
+```
+
+
+```{r}
+colnames(data_NA) <- c("MUNICIPIO", "DISTRITITO", "SECCIONES", "DISTRIBUCION", "PERIODO", "TOTAL")
+data_NA <- subset(data_NA, select = c("SECCIONES", "DISTRIBUCION", "TOTAL"))
+
+data_NA$SECCIONES <- as.character(gsub(".*\\b(\\d{5})$", "\\1", data_NA$SECCIONES))
+```
+
+```{r}
+renta <- subset(data_NA, DISTRIBUCION == "Renta bruta media por persona")
+renta <- subset(renta, select = c("SECCIONES", "TOTAL"))
+colnames(renta) <- c("SECCIONES", "RENTA_BRUTA")
+
+salario <- subset(data_NA, DISTRIBUCION == "Fuente de ingreso: salario")
+salario <- subset(salario, select = c("SECCIONES", "TOTAL"))
+colnames(salario) <- c("SECCIONES", "SALARIO")
+```
+
+```{r}
+info_dinero <- merge(x = renta, y = salario, by = "SECCIONES", all = TRUE)
+info_dinero
+```
+
+```{r}
+write.csv(info_dinero, file = "dataTratada/info_dinero.csv")
+write_parquet(info_dinero, "dataTratada/info_dinero.parquet")
+```
+
+
