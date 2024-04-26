@@ -220,13 +220,13 @@ También se han dividido todas las variables numéricas por su
 
 ```{r base_final}
 df_final <- df2[which(df2$distrito != "POBLATS DEL NORD" & df2$distrito != "POBLATS DEL SUD"),]
-df_numerico <- df_final %>% select(-c("barrio", "distrito", "geo_shape"))
+df_numerico <- df_final %>% select(-c("barrio", "distrito", "geo_shape", "precio_alquiler"))
 #Dividimos las variables por la superficie
 p <- df_numerico %>% apply(2, function(x) x / df_numerico$superficie_barrio)
 p <- data.frame(p) %>% select(-superficie_barrio)
 
 df_final <- cbind(barrio = df_final$barrio, p, distrito = df_final$distrito,
-                  superficie_barrio = df_final$superficie_barrio)
+                  superficie_barrio = df_final$superficie_barrio, precio_alquiler = df_final$precio_alquiler)
 ```
 
 

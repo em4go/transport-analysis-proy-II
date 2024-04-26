@@ -70,7 +70,6 @@ gtfs$trips
 
 ```{r}
 gtfs$routes
-unique(gtfs$routes$agency_id)
 ```
 
 ## Análisis del calendario
@@ -214,16 +213,18 @@ ggplot(df_for_heatmap, aes(x = service_id, y = weekday, fill = frequency)) +
 
 ```
 
-Aquí parece que no estamos consiguiendo mucha más información de la que teníamos antes. Parece que los servicios L38-810 y L38-755 se ofrecen todos los días.
+Aquí no estamos consiguiendo mucha más información de la que teníamos antes. Parece que los servicios L38-810 y L38-755 se ofrecen todos los días.
+
+De aquí en adelante usaremos el servicio LAB, que es el que se usa entre semana.
 
 ```{r}
 trips <- gtfs$trips %>%
-  filter(service_id == "2516")
+  filter(service_id == "LAB")
 ```
 
-## Análisis de las rutas de metro
+## Análisis de las rutas de bus
 
-Podemos saber el número de trenes por cada servicio.
+Podemos saber el número de buses por cada servicio.
 
 ```{r}
 gtfs$trips %>%
@@ -231,6 +232,8 @@ gtfs$trips %>%
   summarise(frequency = n()) %>%
   arrange(desc(frequency))
 ```
+
+El número de buses de los días laborales es menor que el de los sábados y este menor que el de los domingos y festivos. LAB < SAB < FES
 
 Observemos también cuáles son las rutas más frecuentes:
 
@@ -242,7 +245,7 @@ trips %>%
   arrange(desc(frequency))
 
 ```
-Estas rutas están identificadas por un id, que corresponde al recorrido exacto que hace el tren. Sin embargo, este id no nos da información sobre el número de línea. Observemos ahora cuáles son las líneas más frecuentes.
+Estas rutas están identificadas por un id, que corresponde al recorrido exacto que hace el bus. Sin embargo, este id no nos da información sobre el nombre de línea. Observemos ahora cuáles son las líneas más frecuentes.
 
 Será necesario unir los datasets de rutas y líneas para poder obtener el número de línea.
 
@@ -253,7 +256,7 @@ trips_routes <- trips %>%
   inner_join(gtfs$routes, by = "route_id")
 
 trips_routes %>%
-  group_by(route_short_name) %>%
+  group_by(route_long_name) %>%
   summarise(frequency = n()) %>%
   arrange(desc(frequency)) %>%
   print(n = 10)
@@ -278,16 +281,17 @@ Ahora tenemos un dataframe con todas las paradas de todas las rutas, ordenadas p
 
 ```{r}
 unique_stops_by_route <- stops_by_route %>%
-  distinct(route_id, stop_id, .keep_all = TRUE)
+  distinct(route_id, route_long_name, stop_id, .keep_all = TRUE) %>%
+  arrange(route_id, stop_sequence)
 
 head(unique_stops_by_route)
 ```
 
-Podemos ver las paradas de cualquier ruta sabiendo su id. Por ejemplo, para la ruta V3-56-182 (línea 3):
+Podemos ver las paradas de cualquier ruta sabiendo su id. Por ejemplo, para la ruta 10 (línea BENIMACLET - SANT MARCELÍ):
 
 ```{r}
 stops_for_a_specific_route <- unique_stops_by_route %>%
-  filter(route_id == "V3-56-182")
+  filter(route_id == 10)
 stops_for_a_specific_route %>%
   select(stop_id, stop_name, stop_sequence)
 ```
