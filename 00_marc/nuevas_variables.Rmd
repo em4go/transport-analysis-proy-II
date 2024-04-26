@@ -165,8 +165,19 @@ eco_friendly
 ```{r}
 barrios_final <- cbind(p1, otros_servicios, indice_ricos, eco_friendly)
 
-barrios_indices <- data.frame(barrios_final$barrio, barrios_final$otros_servicios, barrios_final$indice_ricos, barrios_final$eco_friendly, barrios_final$Universidad, barrios_final$Estadio, barrios_final$Hospitales, barrios_final$Cargadores, barrios_final$paradas_metro, barrios_final$paradas_emt, barrios_final$estaciones_valenbisi)
+barrios_indices <- data.frame(barrios_final$barrio, barrios_final$otros_servicios, barrios_final$indice_ricos, barrios_final$eco_friendly, barrios_final$Universidad, barrios_final$Estadio, barrios_final$Hospitales, barrios_final$Cargadores, barrios_final$paradas_metro, barrios_final$paradas_emt, barrios_final$estaciones_valenbisi, barrios_final$distrito)
+
+colnames(barrios_indices) <- c("barrio", "otros_servicios", "indice_ricos", "eco_friendly", "Universidad", "Estadio", "Hospitales", "Cargadores", "paradas_metro", "paradas_emt", "estaciones_valenbisi", "Distrito")
 ```
+
+```{r}
+write.csv(barrios_final, file = "dataTratada/barrios_final.csv", row.names = FALSE)
+
+write.csv(barrios_indices, file = "dataTratada/barrios_indices.csv", row.names = FALSE)
+```
+
+
+
 
 
 
