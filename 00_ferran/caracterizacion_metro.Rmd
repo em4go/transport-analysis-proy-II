@@ -909,6 +909,15 @@ metros_por_franja <- stop_times %>%
 
 ```{r}
 metros_por_franja_t <- metros_por_franja %>%
+  mutate(time_of_day = case_when(
+    time_of_day == "Morning" ~ "metros_in_Morning",
+    time_of_day == "Mid morning" ~ "metros_in_Mid_morning",
+    time_of_day == "Midday" ~ "metros_in_Midday",
+    time_of_day == "Evening" ~ "metros_in_Evening",
+    time_of_day == "Afternoon" ~ "metros_in_Afternoon",
+    time_of_day == "Night" ~ "metros_in_Night",
+    TRUE ~ "Otro"
+  )) %>%
   pivot_wider(names_from = time_of_day, values_from = metros, values_fill = 0)
 ```
 
@@ -922,7 +931,8 @@ metros_por_franja_t <- metros_por_franja %>%
 **Lo obtendremos a partir del grafo mediante el grado de cada nodo. Se van a considerar solo los grados de entrada porque el grafo es bidireccional para todas sus aristas y si se utiliza la función `degree` cuanta los grados de salida y entrada.**
 
 ```{r}
-vecinos <- data.frame(stop_id = V(g)$name, neighbors = degree(g, mode = "in"))
+vecinos <- data.frame(stop_id = V(g)$name, neighbors_in = degree(g, mode = "in"),
+                      neighbors_out = degree(g, mode = "out"))
 ```
 
 
@@ -949,8 +959,67 @@ closeness <- data.frame(stop_id = names(closness_val), closeness = closness_val)
 ```
 
 
+### Capacidad de transporte de pasageros
+
+**En primer lugar vamos a buscar obtener una tabla que recoja, para cada estación, el número de metros y de tranvías que pasan por franja horaria.**
+
+**Vamos a trabajar con la variable `trips_stops_details` que recoge las paradas que hace cada viaje. Primero añadiremos sobre esta una variable que indique si se trata de metro o tranvía, además de las franjas horarias, ya que esta no las tiene. No se utiliza `stop_times` que sí las tiene porque en ella no se tiene el nombre corto de la ruta.**
+
+```{r}
+metro_tranvia <- trips_stops_details %>%
+  mutate(time_of_day = case_when(
+    hour(arrival_time) >= 6 & hour(arrival_time) < 9 ~ "people_Morning",
+    hour(arrival_time) >= 9 & hour(arrival_time) < 12 ~ "people_Mid_morning",
+    hour(arrival_time) >= 12 & hour(arrival_time) < 15 ~ "people_Midday",
+    hour(arrival_time) >= 15 & hour(arrival_time) < 18 ~ "people_Evening",
+    hour(arrival_time) >= 18 & hour(arrival_time) < 21 ~ "people_Afternoon",
+    hour(arrival_time) >= 21 | hour(arrival_time) < 6 ~ "people_Night",
+    TRUE ~ "Otro"
+  )) %>%
+  mutate(tipo = case_when(
+    route_short_name %in% c("4", "6", "8", "10") ~ "Tranvía",
+    TRUE ~ "Metro"
+  ))
+```
+
+**Una vez se ha conseguido, se creará una dataframe agrupando por para estación y franja que recoja el número de metro y tranvías.**
+
+```{r}
+metro_tranvia_por_franja <- metro_tranvia %>%
+  group_by(stop_id, time_of_day, tipo) %>%
+  summarise(n = n())
+metro_tranvia_por_franja_t <- metro_tranvia_por_franja %>%
+  pivot_wider(names_from = tipo, values_from = n, values_fill = 0)
+```
+
+**Ahora poseemos un dataframe que tiene el número de metros y tranvías por franja horaria para cada estación. Vamos a añadir la capacidad de gente que puede transportar cada uno multiplicando el número de metros por el promedio de capacidad de gente que tienen los metros que transitan por valencia e igual para los tranvías. Este promedio estará ponderado por el número de coches de ese tipo que hay disponibles.**
+
+Promedio de capacidad de los metros y tranvías:
+
+- Metros: 588 personas * 0.67 + 750 personas * 0.33 = 640.26 personas
+
+- Tranvías: 277 personas * 0.49 + 201 personas * 0.51 = 237.35 personas
+
+```{r}
+capacidad_metro <- 588*(42/(42+20)) + 750*(20/(42+20))
+capacidad_tranvia <- 277*(22/(22+24)) + 201*(24/(22+24))
+
+metro_tranvia_por_franja_t <- metro_tranvia_por_franja_t %>%
+  mutate(per_metro = capacidad_metro * Metro,
+         per_tranvia = capacidad_tranvia * Tranvía,
+         capacidad_total = capacidad_metro * Metro + capacidad_tranvia * Tranvía)
+```
 
 
+**Seleccionamos el dataframe final para concatenarlo.**
+
+```{r}
+capacidad_estaciones <- metro_tranvia_por_franja_t %>%
+  select(-Metro, -Tranvía, -per_metro, -per_tranvia) %>%
+  pivot_wider(names_from = time_of_day, values_from = capacidad_total, values_fill = 0)
+
+head(capacidad_estaciones)
+```
 
 
 ### Creación del dataset
@@ -960,7 +1029,9 @@ caracteristicas_estaciones <- left_join(vecinos, betweenness, by = "stop_id") %>
   left_join(closeness, by = "stop_id") %>%
   left_join(metros_por_franja_t, by = "stop_id") %>%
   select(-stop_name) %>%
-  left_join(lines_per_station, by = "stop_id")
+  left_join(lines_per_station, by = "stop_id") %>%
+  select(-lines) %>%
+  left_join(capacidad_estaciones, by = "stop_id")
 ```
 
 
@@ -973,6 +1044,8 @@ coordenadas <- gtfs$stops %>%
   select(stop_id, stop_lat, stop_lon)
 
 caracteristicas_estaciones <- left_join(caracteristicas_estaciones, coordenadas, by = "stop_id")
+
+head(caracteristicas_estaciones)
 ```
 
 
