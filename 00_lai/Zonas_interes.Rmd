@@ -1,7 +1,6 @@
 ---
 title: "Zonas De Interes"
 author: "ALEJANDRO"
-date:  "`r Sys.Date()`"
 output: 
     html_document:
     toc: true
@@ -28,11 +27,11 @@ library(arrow)
 
 ```
 
-## Obtención de etiquetas
+##  Obtención de etiquetas
 
 Obtenemos las etiquetas necesarias para poder realizar las consultas osm. Unas han sido obtenidas mediante la función 'available_tag' y otras han sido añadidas a mano a partir de información de la web https://wiki.openstreetmap.org/wiki/Map_features.
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 # Get all the tags available in the OSM database from differente categories
 food <- c("bar", "biergarten", "cafe", "fast_food", "food_court", "ice_cream", "pub", "restaurant")
 food <- data.frame(Key = "amenity", Value = food) # Create a data.frame for food with the columns Key and Value
@@ -47,13 +46,13 @@ shops <- data.frame(Key = "shop", Value = shops) # Create a data.frame for shops
 ```
 
 
-## Obtención de poligonos.
+##  Obtención de poligonos.
 
 Primero cargamos los datos de las dimensiones de cada barrio de Valencia, y mediante la función 'obtener_poligonos' obtenemos los poligonos correspondientes a cada barrio.
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 
-data_barrios <- read.csv2("./data/barrios_valencia.csv", sep = ";")
+data_barrios <- read.csv2("barrios_valencia.csv", sep = ";")
 
 obtener_poligonos <- function(df){
   polygons <- lapply(df$geo_shape, function(x) st_read(x, quiet = TRUE))
@@ -73,7 +72,7 @@ poligonos_barrios<-obtener_poligonos(data_barrios)
 
 Ahora vamos a obtener la bouding box de valencia, para realizar las cosultas sobre ella.
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 vlc_bb <- getbb("Valencia, Spain")
 ```
 
@@ -81,7 +80,7 @@ vlc_bb <- getbb("Valencia, Spain")
 
 Vamos a realizar las consultas osm de los lugares de restauración. Posteriormente, obtenemos las coordenadas de todos los lugares que nos ha proporcionado la consulta y guardamos la latitud y la longitud en un dataframe.
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 consulta_amenity <- vlc_bb%>% 
   opq() %>%
   add_osm_feature(key = 'amenity', value = c("bar", "biergarten", "cafe", "fast_food", "food_court", "ice_cream", "pub", "restaurant")) 
@@ -99,7 +98,7 @@ data_comida <- data.frame(
 
 Creamos un nuevo dataframe donde iteramos cada par longitud-latitud y asignamos el barrio al que pertenece. Los puntos que no pertenecen a ningún barrio los asignamos a 'OTRO'.
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 
 amenity<-data.frame()
 for (pt in 1:nrow(data_comida)) {
@@ -132,7 +131,7 @@ resultado_amenity<- resultado_amenity[resultado_amenity$nombre != "OTRO", ]
 Para las consults de sitios históricos, deportivos y supermercados, se ha realizado el mismo procedimiento.
 ### Monuments
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 #MONUMENTS
 consulta_monuments <- vlc_bb%>% 
   opq() %>%
@@ -149,7 +148,7 @@ data_monuments <- data.frame(
 ```
 
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 monuments<-data.frame()
 for (pt in 1:length(ubicaciones_monuments)) {
   point <- st_point(c(as.numeric(data_monuments$longitud[pt]), as.numeric(data_monuments$latitud[pt])), dim = "XY")
@@ -176,7 +175,7 @@ resultado_monuments <- data.frame(nombre = names(frecuencias_monuments), frecuen
 resultado_monuments<- resultado_monuments[resultado_monuments$nombre != "OTRO", ]
 ```
 
-###Sport
+### Sport
 
 ```{r}
 consulta_sport <- vlc_bb%>% 
@@ -224,7 +223,7 @@ resultado_sport <- data.frame(nombre = names(frecuencias_sport), frecuencia = as
 resultado_sport<- resultado_sport[resultado_sport$nombre != "OTRO", ]
 ```
 
-###Shop
+### Shop
 
 ```{r}
 consulta_shop <- vlc_bb%>% 
@@ -273,13 +272,13 @@ resultado_shop<- resultado_shop[resultado_shop$nombre != "OTRO", ]
 ```
 
 
-##Creacion de dataset
+## Creacion de dataset
 
 Creamos datasets de tipo parquet de los dataframes creados anteriormente.
 ```{r}
-write_parquet(resultado_amenity, "00_hervas/amenity.parquet")
-write_parquet(resultado_monuments,"00_hervas/monuments.parquet")
-write_parquet( resultado_sport,"00_hervas/sport.parquet")
-write_parquet(resultado_shop,"00_hervas/shop.parquet")
+#write_parquet(resultado_amenity, "00_hervas/amenity.parquet")
+#write_parquet(resultado_monuments,"00_hervas/monuments.parquet")
+#write_parquet( resultado_sport,"00_hervas/sport.parquet")
+#write_parquet(resultado_shop,"00_hervas/shop.parquet")
 ```
 

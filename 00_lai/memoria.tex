@@ -1,0 +1,190 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+  10pt,
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+  \setmainfont[]{LiberationSerif}
+  \setsansfont[]{LiberationSans}
+  \setmonofont[]{LiberationMono}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[left=1.5cm,right=1.5cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\usepackage{float}
+\usepackage[colorlinks]{hyperref}
+\hypersetup{colorlinks,linkcolor={black},citecolor={black},urlcolor={red}}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Memoria},
+  pdfauthor={Laiqian Ji},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Memoria}
+\author{Laiqian Ji}
+\date{2024-05-03}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\newpage
+\section*{Agradecimientos}
+
+\newpage
+\section*{Resumen}
+
+\hypertarget{planteamiento}{%
+\section{Planteamiento}\label{planteamiento}}
+
+En el contexto de las ciudades modernas y específicamente de Valencia,
+la comprensión de la dinámica urbana es esencial para el desarrollo
+sostenible y la calidad de vida de sus habitantes. Por un lado, los
+barrios, como unidades elementales de la estructura urbana, intervienen
+en la experiencia diaria de sus residentes. Al mismo tiempo, el
+transporte público, particularmente los sistemas de metro y bus, actúan
+como infraestructura vital que conecta y facilita la movilidad dentro de
+las áreas metropolitanas más allá del transporte privado.
+
+La interacción entre ambos, ofrece un rico campo de estudio que abarca
+diversos aspectos sociales, económicos y ambientales. En este contexto,
+el presente proyecto se centra en la caracterización de los barrios y el
+transporte público, y su relación con el sistema de metro, utilizando
+para ello diferentes técnicas de análisis y algoritmos de aprendizaje
+automático.
+
+La caracterización de barrios implica la identificación y el análisis de
+una amplia gama de variables, que van desde aspectos demográficos y
+socioeconómicos, como la población total y la renta, hasta
+características físicas y culturales, como el número de establecimientos
+de hostelería, monumentos, recintos deportivos, zonas verdes y la
+cantidad de estaciones de metro. Al mismo tiempo, el sistema de metro
+introduce variables adicionales, como volumen promedio por hora, número
+promedio de metros, número de estaciones de entrada/salida y otros
+parámetros propios del estudio de grafos como la cercanía
+(\textit{closeness}) y la intermediación (\textit{betweenness}). La
+combinación de estos datos proporciona una visión completa de la
+compleja interacción entre los barrios y el sistema de transporte
+subterráneo, permitiendo identificar patrones que pueden ser de interés
+para los planificadores urbanos y los responsables de la toma de
+decisiones, así como a los investigadores y la sociedad en general.
+
+Con ello, se espera que este proyecto contribuya a la comprensión de la
+dinámica urbana, prestando especial atención a dos de sus componentes
+más características: los barrios y el transporte público. Además, se
+espera que los resultados obtenidos puedan ser de utilidad para la toma
+de decisiones y la planificación urbana, así como representar una
+muestra de conocimiento en el ámbito de la geografía urbana y el
+análisis de redes.
+
+\hypertarget{estado-del-arte}{%
+\subsection{Estado del arte}\label{estado-del-arte}}
+
+\hypertarget{motivaciuxf3n}{%
+\subsection{Motivación}\label{motivaciuxf3n}}
+
+\hypertarget{objetivos-de-anuxe1lisis}{%
+\subsection{Objetivos de análisis}\label{objetivos-de-anuxe1lisis}}
+
+El objetivo principal de este proyecto es alcanzar una comprensión más
+profunda de los barrios urbanos y su conexión con el sistema de
+transporte público. Para ello, se han desglosado cinco objetivos
+específicos que se desarrollarán a lo largo del proyecto y que se
+detallan a continuación:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Caracterizar barrios
+\item
+  Caracterizar transporte público
+\item
+  Analizar la relación entre barrios y transporte público
+\item
+  Agrupación de barrios / Agrupación de estaciones (clustering)
+\item
+  Visualización
+\end{enumerate}
+
+\hypertarget{metodologuxeda}{%
+\section{Metodología}\label{metodologuxeda}}
+
+\hypertarget{etl}{%
+\subsection{ETL}\label{etl}}
+
+\hypertarget{anuxe1lisis-exploratorio}{%
+\subsection{Análisis exploratorio}\label{anuxe1lisis-exploratorio}}
+
+\hypertarget{modelos}{%
+\subsection{Modelos}\label{modelos}}
+
+\hypertarget{visualizaciuxf3n}{%
+\subsection{Visualización}\label{visualizaciuxf3n}}
+
+\hypertarget{resultados}{%
+\section{Resultados}\label{resultados}}
+
+\hypertarget{conclusiones}{%
+\section{Conclusiones}\label{conclusiones}}
+
+\hypertarget{bibliografuxeda}{%
+\section{Bibliografía}\label{bibliografuxeda}}
+
+\end{document}

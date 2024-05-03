@@ -1,0 +1,71 @@
+---
+title: "Memoria"
+author: "Laiqian Ji"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    keep_tex: true
+    toc: true
+    number_sections: true
+    toc_depth: 3
+    fig_caption: true
+    
+header-includes:
+  #- \usepackage[spanish]{babel}
+  - \usepackage{float}
+  - \usepackage[colorlinks]{hyperref}
+  - \hypersetup{colorlinks,linkcolor={black},citecolor={black},urlcolor={red}}
+  
+mainfont: LiberationSerif
+sansfont: LiberationSans
+monofont: LiberationMono
+fontsize: 10pt
+geometry: "left=1.5cm,right=1.5cm,top=2cm,bottom=2cm"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+\newpage
+\section*{Agradecimientos}
+
+\newpage
+\section*{Resumen}
+
+# Planteamiento
+En el contexto de las ciudades modernas y específicamente de Valencia, la comprensión de la dinámica urbana es esencial para el desarrollo sostenible y la calidad de vida de sus habitantes. Por un lado, los barrios, como unidades elementales de la estructura urbana, intervienen en la experiencia diaria de sus residentes. Al mismo tiempo, el transporte público, particularmente los sistemas de metro y bus, actúan como infraestructura vital que conecta y facilita la movilidad dentro de las áreas metropolitanas más allá del transporte privado. 
+
+La interacción entre ambos,  ofrece un rico campo de estudio que abarca diversos aspectos sociales, económicos y ambientales. En este contexto, el presente proyecto se centra en la caracterización de los barrios y el transporte público, y su relación con el sistema de metro, utilizando para ello diferentes técnicas de análisis y algoritmos de aprendizaje automático. 
+
+La caracterización de barrios implica la identificación y el análisis de una amplia gama de variables, que van desde aspectos demográficos y socioeconómicos, como la población total y la renta, hasta características físicas y culturales, como el número de establecimientos de hostelería, monumentos, recintos deportivos, zonas verdes y la cantidad de estaciones de metro. Al mismo tiempo, el sistema de metro introduce variables adicionales, como volumen promedio por hora, número promedio de metros, número de estaciones de entrada/salida y otros parámetros propios del estudio de grafos como la cercanía (\textit{closeness}) y la intermediación (\textit{betweenness}). La combinación de estos datos proporciona una visión completa de la compleja interacción entre los barrios y el sistema de transporte subterráneo, permitiendo identificar patrones que pueden ser de interés para los planificadores urbanos y los responsables de la toma de decisiones, así como a los investigadores y la sociedad en general.
+
+Con ello, se espera que este proyecto contribuya a la comprensión de la dinámica urbana, prestando especial atención a dos de sus componentes más características: los barrios y el transporte público. Además, se espera que los resultados obtenidos puedan ser de utilidad para la toma de decisiones y la planificación urbana, así como representar una muestra de conocimiento en el ámbito de la geografía urbana y el análisis de redes.
+
+## Estado del arte
+
+## Motivación
+
+## Objetivos de análisis
+El objetivo principal de este proyecto es alcanzar una comprensión más profunda de los barrios urbanos y su conexión con el sistema de transporte público. Para ello, se han desglosado cinco objetivos específicos que se desarrollarán a lo largo del proyecto y que se detallan a continuación:
+
+1. Caracterizar barrios
+2. Caracterizar transporte público
+3. Analizar la relación entre barrios y transporte público
+4. Agrupación de barrios / Agrupación de estaciones (clustering)
+5. Visualización 
+
+# Metodología
+
+## ETL
+
+## Análisis exploratorio
+
+## Modelos
+
+## Visualización
+
+# Resultados
+
+# Conclusiones
+
+# Bibliografía
