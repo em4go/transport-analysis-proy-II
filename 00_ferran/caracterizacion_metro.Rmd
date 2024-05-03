@@ -921,6 +921,18 @@ metros_por_franja_t <- metros_por_franja %>%
   pivot_wider(names_from = time_of_day, values_from = metros, values_fill = 0)
 ```
 
+### Metros por hora
+
+```{r}
+p <- trips_stops_details %>%
+  group_by(stop_id, hour = hour(arrival_time)) %>%
+  summarise(metros = n())
+
+promedio_metros_hora <- p %>%
+  group_by(stop_id) %>%
+  summarise(metros_hora = mean(metros))
+```
+
 
 ### Líneas por estación
 
@@ -931,8 +943,8 @@ metros_por_franja_t <- metros_por_franja %>%
 **Lo obtendremos a partir del grafo mediante el grado de cada nodo. Se van a considerar solo los grados de entrada porque el grafo es bidireccional para todas sus aristas y si se utiliza la función `degree` cuanta los grados de salida y entrada.**
 
 ```{r}
-vecinos <- data.frame(stop_id = V(g)$name, neighbors_in = degree(g, mode = "in"),
-                      neighbors_out = degree(g, mode = "out"))
+vecinos <- data.frame(stop_id = V(g)$name, neighbours_in = degree(g, mode = "in"),
+                      neighbours_out = degree(g, mode = "out"))
 ```
 
 
@@ -1022,6 +1034,36 @@ head(capacidad_estaciones)
 ```
 
 
+### Capacidad promedio de transporte por hora
+
+**Se va a calcular la capacidad promedio de transporte por hora para cada estación.**
+
+```{r}
+metro_tranvia_por_hora <- trips_stops_details %>%
+  mutate(tipo = case_when(
+    route_short_name %in% c("4", "6", "8", "10") ~ "Tranvía",
+    TRUE ~ "Metro"
+  )) %>%
+  group_by(stop_id, tipo, hour=hour(arrival_time)) %>%
+  summarise(n = n())
+
+metro_tranvia_por_hora_t <- metro_tranvia_por_hora %>%
+  pivot_wider(names_from = tipo, values_from = n, values_fill = 0)
+
+metro_tranvia_por_hora_t <- metro_tranvia_por_hora_t %>%
+  mutate(per_metro = capacidad_metro * Metro,
+         per_tranvia = capacidad_tranvia * Tranvía,
+         capacidad_total = capacidad_metro * Metro + capacidad_tranvia * Tranvía) %>%
+  select(-Metro, -Tranvía, -per_metro, -per_tranvia)
+
+capacidad_promedio_hora <- metro_tranvia_por_hora_t %>%
+  group_by(stop_id) %>%
+  summarise(capacidad_hora = mean(capacidad_total))
+```
+
+
+
+
 ### Creación del dataset
 
 ```{r}
@@ -1031,7 +1073,9 @@ caracteristicas_estaciones <- left_join(vecinos, betweenness, by = "stop_id") %>
   select(-stop_name) %>%
   left_join(lines_per_station, by = "stop_id") %>%
   select(-lines) %>%
-  left_join(capacidad_estaciones, by = "stop_id")
+  left_join(capacidad_estaciones, by = "stop_id") %>%
+  left_join(capacidad_promedio_hora, by = "stop_id") %>%
+  left_join(promedio_metros_hora, by = "stop_id")
 ```
 
 
@@ -1053,6 +1097,11 @@ head(caracteristicas_estaciones)
 
 
 
+```{r}
+library(arrow)
+
+write_parquet(caracteristicas_estaciones, "../data/caracteristicas_metro.parquet")
+```
 
 
 

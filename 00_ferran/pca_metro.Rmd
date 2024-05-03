@@ -1,0 +1,265 @@
+---
+title: "PCA metro"
+author: "Ferran Aragó"
+date: "2024-05-01"
+output: 
+  html_document:
+    toc: true
+    number_sections: false
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+.lib<- c("arrow", "FactoMineR", "factoextra", "dplyr", "ggplot2", "gridExtra", "kableExtra")
+
+.inst <- .lib %in% installed.packages()
+if (length(.lib[!.inst])>0) install.packages(.lib[!.inst])
+```
+
+Vamos a realizar un análisis de componentes principales (PCA) con datos de las estaciones de metro de Valencia. Primero será preciso leer los datos y realizar un análisis exploratorio de los mismos.
+
+
+```{r exploratory_analysis, message=FALSE, warning=FALSE}
+library(arrow)
+library(dplyr)
+carac_metro <- read_parquet("../data/caracteristicas_metro.parquet")
+rownames(carac_metro) <- carac_metro$stop_name
+
+
+summary(carac_metro)
+
+```
+
+Podemos observar que no hay valores faltantes por lo que podemos proceder a realizar el PCA.
+
+Puesto que las variables están medidas en diferentes unidades, si que será preciso escalar las variables además de centrarlas.
+
+# Selcción del número de componentes
+
+```{r componentes, fig.cap="Gráfico de valores propios"}
+library(FactoMineR)
+library(factoextra)
+library(ggplot2)
+datos_pca <- carac_metro %>% select(-stop_id, -stop_name, -stop_lat, -stop_lon)
+datos_pca <- scale(datos_pca)
+res.pca <- PCA(datos_pca, scale.unit = FALSE, graph = FALSE)
+fviz_eig(res.pca, addlabels = TRUE)+
+  geom_hline(yintercept = 100/length(res.pca$eig[,1]), linetype = 2, color="red")
+```
+
+Vamos a decir cual va a ser el número de componentes que seleccionaremos para nuestro análisis. Esto lo realizaremos mediante la ayuda del gráfico de valores propios.
+
+Visualizando dicho gráfico, podemos observar que la primera componente ya explica un alto porcentaje de la variabilidad total. A parte de esto, por la técnica del codo tomaríamos las dos primeras componentes, ya que es a partir de esta en la que se observa un claro cambio en la pendiente. Además, si nos fijamos en la línea roja, que marca cual sería el porcentaje de variabilidad explicado por las componentes si todas tuviesen el mismo peso, vemos que tan solo las dos primeras componentes consiguen superar claramente dicha marca.
+
+Con todo lo dicho, se van a tomar un total de 2 componentes para la realización del PCA, con las que se consigue explicar un `r round(res.pca$eig[2,2],3)`% de la varianza total.
+
+# Validación del modelo
+
+Una vez concluido el número de componentes y realizado el análisis, se debe proceder a la validación del modelo. Para ello, primero se evaluará la existencia de outliers extremos, que pueden afectar en gran medida al modelo y, posteriormente, se buscarán outliers moderados, que, no afectan en gran magnitud al modelo, pero si que son indicativos de si el modelo se está ajustando realmente a la realidad o no.
+
+## Búsqueda de outliers extremos
+
+```{r t2}
+K <- 2
+res.pca <- PCA(datos_pca, scale.unit = TRUE, graph = FALSE, ncp = K)
+eig.val <- get_eigenvalue(res.pca)
+
+misScores <- res.pca$ind$coord[,1:K]
+miT2 <- colSums(t(misScores**2)/eig.val[1:K,1])
+I <- nrow(datos_pca)
+F95 <- K*(I**2 - 1)/(I*(I - K)) * qf(0.95, K, I-K)
+F99 <- K*(I**2 - 1)/(I*(I - K)) * qf(0.99, K, I-K)
+
+plot(1:length(miT2), miT2, type = "p", xlab = "Estaciones metro", ylab = "T2")
+abline(h = F95, col = "orange", lty = 2, lwd = 2)
+abline(h = F99, col = "red3", lty = 2, lwd = 2)
+title("Gráfico T2 Hotelling")
+```
+
+
+En el gráfico anterior se muestra el valor de T2 de Hotelling para cada una de las estaciones de metro. Además, se han marcado dos líneas, una naranja y otra roja, que indican el valor de T2 de Hotelling para un nivel de significancia del 95% y del 99% respectivamente. Puesto que disponemos de in total de `r nrow(datos_pca)` estaciones, podemos comprobar que se encuentran dos observaciones de más fuera de los rangos establecidos.
+
+Estas dos estaciones se corresponden con:
+
+
+```{r}
+carac_metro[order(miT2, decreasing = T)[1:2], "stop_name"]
+```
+
+
+Vamos a analizar la contribución de cada variable a la distancia de estas dos estaciones al modelo.
+
+```{r contri_T2}
+library(gridExtra)
+contribT2 = function (X, scores, loadings, eigenval, observ, cutoff = 2) {
+  # X is data matrix and must be centered (or centered and scaled if data were scaled)
+  misScoresNorm = t(t(scores**2) / eigenval)
+  misContrib = NULL
+  for (oo in observ) {
+    print(rownames(scores)[oo])
+    print(scores[oo,])
+    misPCs = which(as.numeric(misScoresNorm[oo,]) > cutoff)
+    lacontri = sapply(misPCs, function (cc) (scores[oo,cc]/eigenval[cc])*loadings[,cc]*X[oo,])
+    lacontri = rowSums((1*(sign(lacontri) == 1))*lacontri)
+    misContrib = cbind(misContrib, lacontri)
+  }
+  colnames(misContrib) = rownames(misScoresNorm[observ,])
+  return(misContrib)
+}
+
+orden_T2 <- order(miT2, decreasing = TRUE)
+observ_max <- orden_T2[1:2]
+
+misLoadings <-  sweep(res.pca$var$coord, 2, sqrt(res.pca$eig[1:K,1]), FUN="/")
+
+mis_contrib <- contribT2(datos_pca, scores = res.pca$ind$coord, loadings = misLoadings, 
+                    eigenval = eig.val[1:3, 1], observ = observ_max, cutoff = K)
+
+par(mar = c(10,2.5,3,1))
+barplot(mis_contrib[,1],las=2, cex.names = 0.8,
+        main= paste0("Observación: ", carac_metro$stop_name[observ_max[1]]))
+barplot(mis_contrib[,2],las=2, cex.names = 0.8,
+        main= paste0("Observación: ", carac_metro$stop_name[observ_max[2]]))
+
+```
+
+Viendo las contribuciones de las variables, por parte de Àngel Guimerà, todas las variables contribuyen de forma similar y con una magnitud muy baja, por lo que se considera que no hay ningún motivo para eliminarlo de nuestro análisis. Por otro lado, en el caso de Empalme, se se observa que hay dos variables que contribuyen en gran medida al estadístico $T^2$ de Hotelling, estas son `neighbours_in` y `neighbours_out`, significando que la estación de Empalme tiene valores anómalos para ambas variables. Pese a esto, se va a mantener en el análisis, ya que es un punto interesante para nuestro estudio y, además, se tratan de datos reales.
+
+
+
+## Búsqueda de outliers moderados
+
+```{r scr}
+myE <- datos_pca - misScores %*% t(misLoadings) 
+mySCR <- rowSums(myE^2)  
+g <- var(mySCR)/(2*mean(mySCR))
+h <- (2*mean(mySCR)^2)/var(mySCR)
+chi2lim <- g*qchisq(0.95, df = h)
+chi2lim99 <- g*qchisq(0.99, df = h)
+plot(1:length(mySCR), mySCR, type = "p", main = "Distancia al modelo", 
+     ylab = "SCR", xlab = "Jugadores")
+abline(h = chi2lim, col = "orange", lty = 2, lwd = 2)
+abline(h = chi2lim99, col = "red3", lty = 2, lwd = 2)
+```
+
+Por parte de los outliers moderados, se observa que para el nivel de significación del 99%, se cumple con el numero esperado de outliers, en cambio para el nivel de significación del 95%, se observa que hay un número de outliers mayor al esperado. No obstante, estos no son preocupantes ya que no modifican la generación de las componentes, por lo que no se estudiará la eliminación de ninguna estación. Además, pese a ser anómalos, siguen siendo valores reales.
+
+Por otro lado, este gráfico nos ayuda a ver si la representación de las estaciones en el nuevo plano que hemos generado mediante las componentes principales es correcta o no. Puesto que no se observa que haya muchas estaciones con un valor de SCR muy elevado, podemos concluir que la representación de las estaciones en el nuevo plano es correcta.
+
+
+
+# Interpretación de las componentes
+
+Una vez validado el modelo, procedmos a su análisis.
+
+## Gráfico de variables
+
+```{r variables}
+fviz_pca_var(res.pca, col.var = "cos2", repel = TRUE,
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+```
+
+
+Viendo el gráfico de variables, se observa que las variables que la variables relacionadas que indican la cantidad de personas que pueden transportar y el número de metros por estación, diferenciando por franja horaria, están muy relacionadas las distintas franjas, cosa que hará que no haya una diferenciación de estaciones por la franja sino por el promedio general. Es por esto por lo que se ha decidido no considerar estas variables para el PCA y utilizar tan solo el promedio de metros y capacidad de gente que puede transportar por hora.
+
+Tras esto se vuelve a realizar el PCA con las variables indicadas.
+
+```{r pca2}
+datos_pca2 <- carac_metro %>% select(c("neighbours_in", "neighbours_out", "betweenness",
+                                  "closeness","n_lines","capacidad_hora","metros_hora"))
+
+datos_pca2 <- scale(datos_pca2)
+res.pca2 <- PCA(datos_pca2, scale.unit = FALSE, graph = FALSE)
+eig.val2 <- get_eigenvalue(res.pca2)
+fviz_eig(res.pca2, addlabels = TRUE)+
+  geom_hline(yintercept = 100/length(res.pca2$eig[,1]), linetype = 2, color="red")
+```
+
+
+En esta nueva PCA, se observa que se pierde porcentaje de explicación por la primera componente, no obstante, con las dos primeras componentes se sigue explicado una gran parte de la varianza total, más exactamente un `r round(eig.val2[2,2],3)`%. Por ello, seguiremos trabajando con las dos primeras componentes.
+
+```{r}
+res.pca2 <- PCA(datos_pca2, scale.unit = FALSE, graph = FALSE, ncp = 2)
+fviz_pca_var(res.pca2, col.var = "cos2", repel = TRUE,
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+```
+
+Pasando al nuevo gráfico de variables, se observan fuertes correlaciones entre distintas variables. Empezando por las variables `neighbours_in` y `neighbours_out`, se observa que están muy relacionadas entre ellas. Esto tiene sentido, ya que, para la gran mayoría de estaciones, la dirección las estaciones con las que se conectan son las mismas en ambas direcciones, ya que el metro viaja por las mismas vías en ambos sentidos. Aún así, se encuentran algunas estaciones en las que esto no coincide, estas son:
+
+```{r}
+library(kableExtra)
+kable(carac_metro[which(carac_metro$neighbours_in != carac_metro$neighbours_out),
+                  c("stop_name", "neighbours_in", "neighbours_out")])
+```
+
+Siguiendo con el resto de variables, las variables de promedio de metros por hora y gente transportada por hora están también muy correlacionadas por el hecho de que la capacidad de transporte viene en función del numero de metros y tranvías que pasan por la estación, ya que, como no se disponen de los datos reales de número de gente que transita la estación, se ha multiplicado el número de metros y tranvías por la capacidad promedio de ambos. Sin embargo, hay diferencia entre ambas, ya que el número de metros recoge la cantidad promedio de metros o tranvías que pasan por hora sin diferenciar, mientras que la capacidad si que diferencia entre si el transporte es metro o tranvía, ya que no tienen la misma capacidad.
+
+Pasando ahora a las variables que no tienen dependencias entre ellas, se observa una fuerte correlación multidimensional entre las variables mencionadas anteriormente, sobre cantidad de metros y personas y el closeness, que indica si la estación permite llegar al resto de estaciones con una menor distancia, y el número de líneas. Esto tiene sentido, ya que resulta lógico que las esaciones más centrales de la red tenga una mayor tránsito de metros y, por tanto, pasen más líneas distintas por ellas.
+
+
+## Gráfico de individuos
+
+```{r individuos}
+fviz_pca_ind(res.pca2, label=FALSE, col.ind="cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+```
+
+
+
+
+```{r}
+carac_metro[which(res.pca$ind$coord[,1] > 0 & res.pca$ind$coord[,2] < 0),]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
