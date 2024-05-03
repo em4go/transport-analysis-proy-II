@@ -65,8 +65,21 @@ names(gtfs$stops)
 ```
 
 ```{r}
+gtfs$stops
+```
+
+
+```{r}
 gtfs$trips
 ```
+
+Las los viajes de bus se diferencian en ida y vuelta con una V o una I al final del shape_id y en el trip_id. Vamos a crear una columna nueva para saber si es ida o vuelta.
+
+```{r}
+gtfs$trips$is_round_trip <- grepl("V$", gtfs$trips$shape_id)
+head(gtfs$trips$is_round_trip)
+```
+
 
 ```{r}
 gtfs$routes
@@ -215,12 +228,6 @@ ggplot(df_for_heatmap, aes(x = service_id, y = weekday, fill = frequency)) +
 
 Aquí no estamos consiguiendo mucha más información de la que teníamos antes. Parece que los servicios L38-810 y L38-755 se ofrecen todos los días.
 
-De aquí en adelante usaremos el servicio LAB, que es el que se usa entre semana.
-
-```{r}
-trips <- gtfs$trips %>%
-  filter(service_id == "LAB")
-```
 
 ## Análisis de las rutas de bus
 
@@ -257,8 +264,14 @@ gtfs$trips %>%
   arrange(desc(n_routes))
 ```
 
+De aquí en adelante usaremos el servicio LAB + L38-755, que es el que se usa entre semana.
 
-Observemos también cuáles son las rutas más frecuentes:
+```{r}
+trips <- gtfs$trips %>%
+  filter(service_id == "LAB" | service_id == "L38-755")
+```
+
+Cuáles son las rutas más frecuentes:
 
 ```{r}
 # get the frequency for routes
@@ -268,6 +281,9 @@ trips %>%
   arrange(desc(frequency))
 
 ```
+
+Parece ser que para algunas rutas aparecen muy pocos trips, mientras que hay muchos más en otras. Esto resulta raro, ya que no tiene sentido que solo haya 2 buses de una ruta mientras que hay 146 de otra.
+
 Estas rutas están identificadas por un id, que corresponde al recorrido exacto que hace el bus. Sin embargo, este id no nos da información sobre el nombre de línea. Observemos ahora cuáles son las líneas más frecuentes.
 
 Será necesario unir los datasets de rutas y líneas para poder obtener el número de línea.
@@ -275,7 +291,7 @@ Será necesario unir los datasets de rutas y líneas para poder obtener el núme
 ```{r}
 
 # merge the routes with the trips
-trips_routes <- gtfs$trips %>%
+trips_routes <- trips %>%
   inner_join(gtfs$routes, by = "route_id")
 
 trips_routes %>%
@@ -294,17 +310,7 @@ unique_routes <- trips_routes %>%
 unique_routes
 ```
 
-Vamos a ver cuáles son los servicios que incluyen cada ruta.
-
-```{r}
-unique_routes <- trips_routes %>%
-  group_by(service_id) %>%
-  distinct(route_short_name, route_long_name) %>%
-  arrange(route_short_name)
-
-unique_routes
-```
-
+Como hemos comprobado antes, el servicio L38-755 solo tiene una ruta, la 98.
 
 Para conseguir cuántas paradas hay por cada ruta y cuáles son:
 
@@ -316,12 +322,11 @@ trips_stops_details <- trips %>%
 
 
 stops_by_route <- trips_stops_details %>%
-  select(route_id, route_long_name, trip_id, stop_id, stop_sequence, stop_name, stop_lat, stop_lon) %>%
+  select(route_id, route_long_name, trip_id, stop_id, stop_sequence, stop_name, stop_lat, stop_lon, is_round_trip) %>%
   arrange(route_long_name, trip_id, stop_sequence)
 ```
 
-Ahora tenemos un dataframe con todas las paradas de todas las rutas, ordenadas por la secuencia de paradas.
-
+Ahora tenemos un dataframe con todas las paradas de todas las rutas, ordenadas por la secuencia de paradas. Para esto también hay que ver si el viaje es de ida o de vuelta con la columna que se ha creado al principio.
 
 ```{r}
 unique_stops_by_route <- stops_by_route %>%
@@ -335,7 +340,7 @@ Podemos ver las paradas de cualquier ruta sabiendo su id. Por ejemplo, para la r
 
 ```{r}
 stops_for_a_specific_route <- unique_stops_by_route %>%
-  filter(route_id == 10)
+  filter(route_id == 10 & is_round_trip == FALSE) # viaje de ida
 stops_for_a_specific_route %>%
   select(stop_id, stop_name, stop_sequence)
 ```
@@ -343,15 +348,17 @@ stops_for_a_specific_route %>%
 También se puede saber el número de paradas que tiene cada ruta:
 
 ```{r}  
-unique_stops_by_route %>%
-  group_by(route_id, route_long_name) %>%
+stops_by_route <- unique_stops_by_route %>%
+  group_by(route_id, route_long_name, is_round_trip) %>%
   summarise(n_stops = n(), .groups = "drop") %>%
   arrange(desc(n_stops))
+
+stops_by_route
 ```
 
 ## Análisis según el horario
 
-Se van a dividir los horarios según la franja horaria del día, de forma que se puede ver si hay diferencias en el servicio de metro y tranvía en distintos momentos del día.
+Se van a dividir los horarios según la franja horaria del día, de forma que se puede ver si hay diferencias en el servicio de bus y tranvía en distintos momentos del día.
 
 ```{r}
 stop_times <- gtfs$stop_times %>%
@@ -359,30 +366,36 @@ stop_times <- gtfs$stop_times %>%
   inner_join(trips, by = "trip_id") # aquí ya se incluye el filtro anterior del service_id
 ```
 
-Vamos a ver el número de metros por hora.
-
 ```{r}
-metros_por_hora <- stop_times %>%
-  group_by(hour = hour(arrival_time)) %>%
-  summarise(n_metros = n()) %>%
-  arrange(hour)
-
-metros_por_hora
+stop_times %>%
+  arrange(arrival_time)
 ```
 
 
-En un gráfico de barras se puede ver mejor la distribución de metros por hora.
+Vamos a ver el número de buses por hora.
 
 ```{r}
-ggplot(metros_por_hora, aes(x = hour, y = n_metros)) +
+buses_por_hora <- stop_times %>%
+  group_by(hora = hour(arrival_time)) %>%
+  summarise(n_bus = n()) %>%
+  arrange(hora)
+
+buses_por_hora
+```
+
+
+En un gráfico de barras se puede ver mejor la distribución de buses por hora.
+
+```{r}
+ggplot(buses_por_hora, aes(x = hora, y = n_bus)) +
   geom_bar(stat = "identity", fill="mediumaquamarine") +
-  labs(title = "Número de metros por hora",
+  labs(title = "Número de buses por hora",
        x = "Hora",
-       y = "Número de metros")+
+       y = "Número de buses")+
   theme_minimal()
 ```
 
-Se puede ver que desde 7 de la mañana hasta las 21 horas el servicio es más frecuente y el número de metros es similar para todas las horas intermedias, siendo las 8, 14 y 15 las horas con más frecuencia de metros. Esto probablemente se deba a la entrada y salida del trabajo y la hora de comer.
+Se puede ver cómo la franja principal de actividad es entre las 7 de la mañana y las 10 de la noche. Sorprende ver que hay más buses a las 12 de la noche que en cualquier otra hora del día.
 
 ### Análisis por franjas horarias
 
@@ -414,54 +427,52 @@ stop_times %>%
   arrange(desc(arrival_time)) %>%
   head()
 ```
-Hay algunos metros que pasan a las 24:30 horas, lo que puede dar lugar a confusión. Esto ocurre para que sea más fácil ordenar los metros por hora. Es decir, si un metro pasa a las 24:30 horas, se considera que pasa a las 00:30 horas del día siguiente.
+Hay algunos buses que pasan a las 26 horas, lo que puede dar lugar a confusión. Esto ocurre para que sea más fácil ordenar los buses por hora. Es decir, si un bus pasa a las 26:30 horas, se considera que pasa a las 2:30 horas del día siguiente.
 
-Al filtrar stop_times por una parada en concreto, se puede ver el horario del metro de esa parada.
+Al filtrar stop_times por una parada en concreto, se puede ver el horario del bus de esa parada.
 
 ```{r}
-# 89 es el id de la parada Universitat Politècnica
-times_politecnica <- stop_times %>%
-  filter(stop_id == "89") %>%
+# 89 es el id de la parada Blasco Ibáñez - Hondures
+times_honduras <- stop_times %>%
+  filter(stop_id == "126") %>%
   arrange(arrival_time)
 
-head(times_politecnica)
+head(times_honduras)
 ```
 
-También se puede ver el número de metros por franja horaria tanto en total como en una sola parada.
+También se puede ver el número de buses por franja horaria tanto en total como en una sola parada.
 
 ```{r}
 stop_times %>%
   group_by(time_of_day) %>%
-  summarise(n_metros = n())
+  summarise(n_buses = n())
 ```
-Podemos ver que cuando más metros hay es en la franja desde las 12 hasta las 15 horas, que es la franja de la hora de comer. Por otro lado, como era de esperar entre semana, el servicio nocturno es el menos frecuente.
 
-Es interesante ver que en la franja de __Morning__ hay menos metros que en el resto de franjas del día. Esto se debe a que están incluidas las 6 a.m. y a esa hora no hay mucho servicio de metro.
+Es interesante ver que en la franja de _Morning_ hay menos buses que en el resto de franjas del día. Esto se debe a que están incluidas las 6 y las 7 a.m. y a esa hora no hay mucho servicio de bus.
 
-
-Ahora se va a ver el número de metros por franja horaria en la parada de Universitat Politècnica.
+Ahora se va a ver el número de buses por franja horaria en la parada de Honduras.
 
 ```{r}
-times_politecnica %>%
+times_honduras %>%
   group_by(time_of_day) %>%
-  summarise(n_metros = n())
+  summarise(n_buses = n())
 ```
 
-Para la parada de Universitat Politècnica ocurre lo mismo que en la tendencia general.
+Ocurre un caso extraño, ya que solo hay 2 buses que pasan por esta parada. Esto puede deberse a que los buses no tienen un horario fijo, sino que se da una frecuencia aproximada de paso.
 
-## Caracterización de las líneas de metro
+## Caracterización de las líneas de bus
 
 Para cada service_id, para cada estación pordemos conocer las siguientes características:
 
-- Nº de metros / hora
-- Nº de metros / día
-- Nº de metros totales
-- Nº de metros / hora por línea
-- Nº de metros / día por línea
+- Nº de buses / hora
+- Nº de buses / día
+- Nº de buses totales
+- Nº de buses / hora por línea
+- Nº de buses / día por línea
 
-También se puede crear un grafo con las estaciones y las líneas de metro, de forma que podamos extraer más características como la intermediación de una estación, su grado (número de estaciones con las que se conecta directamente), etc.
+También se puede crear un grafo con las estaciones y las líneas de bus, de forma que podamos extraer más características como la intermediación de una estación, su grado (número de estaciones con las que se conecta directamente), etc.
 
-### Nº de metros
+### Nº de buses
 
 Es necesario unir las tablas de rutas, trips, stop_times y stops para esta tarea y las siguientes:
 
@@ -478,59 +489,59 @@ head(trips_stops_details)
 nrow(trips_stops_details)
 ```
 
-El número de metros totales cada día es de 29.864
+El número de buses totales cada día es de 29.864
 
 
-### Número de metros por hora por estación.
+### Número de buses por hora por estación.
 
 
 ```{r}
-metros_por_hora <- trips_stops_details %>%
+buses_por_hora <- trips_stops_details %>%
   group_by(stop_id, stop_name, hour = hour(arrival_time)) %>%
-  summarise(metros = n())
+  summarise(buses = n())
 
-metros_por_hora
+buses_por_hora
 ```
 
-Quiero trasponer las columnas hour y metros para tener una columna por cada hora, de forma que sea más fácil ver la tabla para cada estación.
+Quiero trasponer las columnas hour y buses para tener una columna por cada hora, de forma que sea más fácil ver la tabla para cada estación.
 
 ```{r}
 library(tidyr)
-metros_por_hora_t <- metros_por_hora %>%
-  pivot_wider(names_from = hour, values_from = metros, values_fill = 0)
+buses_por_hora_t <- buses_por_hora %>%
+  pivot_wider(names_from = hour, values_from = buses, values_fill = 0)
 
-head(metros_por_hora_t)
+head(buses_por_hora_t)
 ```
 
-El número de metros por hora por estación incluye tanto los de entrada como los de salida.
+El número de buses por hora por estación incluye tanto los de entrada como los de salida.
 
-### Número de metros por día por estación
+### Número de buses por día por estación
 
-Es tan fácil como sumar los metros por hora del dataframe creado antes.
+Es tan fácil como sumar los buses por hora del dataframe creado antes.
 
 ```{r}
-metros_por_dia <- metros_por_hora %>%
+buses_por_dia <- buses_por_hora %>%
   group_by(stop_id, stop_name) %>%
-  summarise(metros = sum(metros), .groups = "drop")
+  summarise(buses = sum(buses), .groups = "drop")
   
 
-head(metros_por_dia)
+head(buses_por_dia)
 ```
 
-Para ver la distribución de metros por estación al día, se puede hacer un histograma que la muestre.
+Para ver la distribución de buses por estación al día, se puede hacer un histograma que la muestre.
 
 ```{r}
-ggplot(metros_por_dia, aes(x = metros)) +
+ggplot(buses_por_dia, aes(x = buses)) +
   geom_histogram(fill = "mediumaquamarine", color = "black", bins=10) +
-  labs(title = "Distribución de metros por día por estación",
-       x = "Número de metros",
+  labs(title = "Distribución de buses por día por estación",
+       x = "Número de buses",
        y = "Número de estaciones") +
   theme_minimal()
 ```
 
 ```{r}
-metros_por_dia %>%
-  arrange(desc(metros)) %>%
+buses_por_dia %>%
+  arrange(desc(buses)) %>%
   head(10)
 ```
 
@@ -541,50 +552,50 @@ metros_por_dia %>%
 
 ```{r}
 lines_per_station <- trips_stops_details %>%
-  group_by(stop_id, stop_name) %>%
+  group_by(stop_id, stop_name, is_round_trip) %>%
   summarise(lines = list(unique(route_short_name)), n_lines = length(unique(route_short_name)))
 
 lines_per_station
 ```
 
-Ahora se buscará una tabla con los metros por hora de cada línea y cada estación.
-Se agrupará por `route_short_name`, `stop_id` y `hour` y se sumarán los metros.
+Ahora se buscará una tabla con los buses por hora de cada línea y cada estación.
+Se agrupará por `route_short_name`, `stop_id` y `hour` y se sumarán los buses.
 
 ```{r}
-metros_por_hora_linea <- trips_stops_details %>%
+buses_por_hora_linea <- trips_stops_details %>%
   group_by(route_short_name, stop_id, stop_name, hour = hour(arrival_time)) %>%
-  summarise(metros = n())
+  summarise(buses = n())
 
-metros_por_hora_linea
+buses_por_hora_linea
 ```
 
 Se traspondrá la tabla para tener una columna por cada hora
 
 ```{r}
-metros_por_hora_linea_t <- metros_por_hora_linea %>%
-  pivot_wider(names_from = hour, values_from = metros, values_fill = 0)
+buses_por_hora_linea_t <- buses_por_hora_linea %>%
+  pivot_wider(names_from = hour, values_from = buses, values_fill = 0)
 
-metros_por_hora_linea_t
+buses_por_hora_linea_t
 ```
 
-También se puede saber el número de metros por día por línea y estación
+También se puede saber el número de buses por día por línea y estación
 
 ```{r}
-metros_por_dia_linea <- metros_por_hora_linea %>%
+buses_por_dia_linea <- buses_por_hora_linea %>%
   group_by(route_short_name, stop_id, stop_name) %>%
-  summarise(metros = sum(metros))
+  summarise(buses = sum(buses))
 
-head(metros_por_dia_linea)
+head(buses_por_dia_linea)
 ```
 
 
-## Grafo de estaciones y líneas de metro
+## Grafo de estaciones y líneas de bus
 
 
 
-Se creará un grafo con las estaciones y las líneas de metro.
+Se creará un grafo con las estaciones y las líneas de bus.
 
-Primero se creará un dataframe con las estaciones y las líneas de metro que pasan por cada estación
+Primero se creará un dataframe con las estaciones y las líneas de bus que pasan por cada estación
 
 ### Preparación de los datos
 
@@ -602,7 +613,7 @@ Ahora se pueden ver las líneas que pasan por cada estación.
 head(lines_per_station$lines)
 ```
 
-Para crear el grafo, se necesita una lista de nodos y de aristas. La lista de nodos será la lista de estaciones y la lista de aristas se obtendrá de las líneas de metro, uniendo dos a dos las estaciones que pertenecen a la misma línea y que están en la misma secuencia de paradas. El peso de las aristas será el tiempo que se tarda en llegar desde una estación a otra.
+Para crear el grafo, se necesita una lista de nodos y de aristas. La lista de nodos será la lista de estaciones y la lista de aristas se obtendrá de las líneas de bus, uniendo dos a dos las estaciones que pertenecen a la misma línea y que están en la misma secuencia de paradas. El peso de las aristas será el tiempo que se tarda en llegar desde una estación a otra.
 
 Primero se creará la lista de nodos
 
@@ -618,7 +629,7 @@ Veamos ahora qué estaciones pertenecen a cada línea. Primero se unirán las ta
 
 ```{r}
 stops_routes <- trips_stops_details %>%
-  select(stop_id, stop_name, route_id, route_long_name, route_short_name) %>%
+  select(stop_id, stop_name, route_id, route_long_name, route_short_name, is_round_trip) %>%
   distinct()
 
 stops_routes
@@ -628,7 +639,7 @@ Ahora quiero una lista de todas las paradas que contiene cada ruta, ordenadas po
 
 ```{r}
 stops_routes_ordered <- stops_routes %>%
-  group_by(route_id, route_short_name, route_long_name) %>%
+  group_by(route_id, route_short_name, route_long_name, is_round_trip) %>%
   
   arrange(route_id, stop_id) %>%
   summarise(stops = list(stop_id), n_stops = n())
@@ -675,7 +686,7 @@ head(routes_non_subset)
 print(nrow(routes_non_subset))
 ```
 
-Hay 24 líneas __maximales__.
+Hay 90 líneas _maximales_ contando ida y vuelta como diferentes.
 
 
 Es el momento de obtener la estación de salida de cada ruta y la estación de fin.
@@ -684,8 +695,8 @@ Se crearán dos columnas en la tabla stops_routes_ordered con la estación de sa
 
 ```{r}
 routes_non_subset <- routes_non_subset %>%
-  mutate(start_station = sapply(strsplit(route_long_name, " - "), function(x) x[2]),
-         end_station = sapply(strsplit(route_long_name, " - "), function(x) x[3]))
+  mutate(start_station = sapply(strsplit(route_long_name, " - "), function(x) x[1]),
+         end_station = sapply(strsplit(route_long_name, " - "), function(x) x[2]))
 
 head(routes_non_subset)
 ```
@@ -694,8 +705,8 @@ Ahora se van a conseguir un trip para cada ruta maximal, de forma que se pueda o
 
 ```{r}
 trips_routes_non_subset <- trips %>%
-  inner_join(routes_non_subset, by = "route_id") %>%
-  select(route_id, service_id, trip_id, route_short_name, route_long_name, start_station, end_station, stops, n_stops)
+  inner_join(routes_non_subset, by = c("route_id", "is_round_trip")) %>%
+  select(route_id, service_id, trip_id, route_short_name, route_long_name, start_station, end_station, stops, n_stops, is_round_trip)
 
 # Dejar solo una fila para cada route_id
 trips_routes_non_subset <- trips_routes_non_subset %>%
@@ -794,7 +805,7 @@ complete_trips <- complete_trips %>%
 complete_trips
 ```
 
-Con el dataframe conseguido tenemos la información suficiente para puede crear el grafo con las estaciones y las líneas de metro.
+Con el dataframe conseguido tenemos la información suficiente para puede crear el grafo con las estaciones y las líneas de bus.
 
 ```{r}
 node_pairs <- complete_trips %>%
@@ -806,14 +817,14 @@ Para no tener nodos duplicados, se eliminará una de las direcciones en los pare
 ```{r}
 # drop duplicates from complete_trips
 distinct_nodes <- complete_trips %>%
-  distinct(stop_id_1, .keep_all = TRUE)
+  distinct(stop_id_1, stop_id_2, .keep_all = TRUE)
 
 nrow(distinct_nodes)
 ```
 
 ### Construcción del grafo
 
-Se usará la librería igraph para construir un grafo que contiene la red de metro.
+Se usará la librería igraph para construir un grafo que contiene la red de bus.
 
 ```{r}
 library(igraph)
@@ -856,7 +867,7 @@ V(g)$zone <- distinct_nodes$zone_id.x
 
 ### Estudio de las propiedades de grafo
 
-Ahora que tenemos los datos en forma de grafo, podemos analizar métricas de la red de metro que antes eran imposibles o más difíciles de conseguir.
+Ahora que tenemos los datos en forma de grafo, podemos analizar métricas de la red de bus que antes eran imposibles o más difíciles de conseguir.
 
 Distribución de grado (entrada + salida)
 
@@ -884,7 +895,7 @@ shortest_path <- shortest_paths(g, from = s2, to = s1)
 shortest_path$vpath[[1]]$stop_name
 ```
 
-Falta incluir qué líneas de metro pasan por cada estación. Se usará el df lines_per_station que ya se ha creado antes.
+Falta incluir qué líneas de bus pasan por cada estación. Se usará el df lines_per_station que ya se ha creado antes.
 
 ```{r}
 # sort the same as the graph
@@ -946,10 +957,10 @@ g_undirected <- as.undirected(g)
 components(g_undirected)$no
 ```
 
-Tiene solo una componente conexa porque se han añadido los trasbordos entre las estaciones de Alacant y las más cercanas, ya que no hay metro entre ellas pero en la realidad existe un trasbordo entre ellas.
+Tiene solo una componente conexa porque se han añadido los trasbordos entre las estaciones de Alacant y las más cercanas, ya que no hay bus entre ellas pero en la realidad existe un trasbordo entre ellas.
 
 
-Ahora es un buen momento para crear un dataset que incluya cada parada de metro y métricas conseguidas desde el grafo, teniendo en cuenta que cada parada es un nodo.
+Ahora es un buen momento para crear un dataset que incluya cada parada de bus y métricas conseguidas desde el grafo, teniendo en cuenta que cada parada es un nodo.
 
 Las medidas a conseguir son:
 - Grado de entrada
