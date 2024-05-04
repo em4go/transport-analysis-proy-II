@@ -29,6 +29,9 @@ E(grafo)$length <- as.numeric(E(grafo)$length) # Convertir a numérico
 # Cargar el GTFS de Metrovalencia, para las paradas de metro
 gtfs_metro <- read_gtfs("../data/gtfs_data/transit_metrovalencia.zip")
 
+# Cargar el GTFS de EMT Valencia, para las paradas de autobús
+gtfs_emt <- read_gtfs("../data/gtfs_data/transit_emt_valencia.zip")
+
 
 # Ejemplo de uso de las funciones auxiliares
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -55,65 +58,113 @@ posibles_puntos <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia
                      "Universidad Politecnica de Valencia", "Estadio Mestalla", "Playa de la Malvarrosa", "Bioparc Valencia", 
                      "Estación Valencia-Cabanyal", "Ciudad de las Artes y las Ciencias", "Catedral de Valencia")
 
+posibles_puntos1 <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia")
+
 lugar_seleccionado <- "Plaza de Toros de Valencia"
 
-crear_mapa <- function(lugar_seleccionado, distancia) {
-  if (lugar_seleccionado == "Plaza de Toros de Valencia") {
-    nodo_entrada <- get_start_node(grafo,  "Plaza de Toros de Valencia")
-  } else if (lugar_seleccionado == "Estación del Norte Valencia") {
-    nodo_entrada <- get_start_node(grafo,  "Estación del Norte Valencia")
-  } else if (lugar_seleccionado == "Universidad Politecnica de Valencia") {
-    nodo_entrada <- get_start_node(grafo,  "Universidad Politecnica de Valencia")
-  } else if (lugar_seleccionado == "Estadio Mestalla") {
-    nodo_entrada <- get_start_node(grafo,  "Estadio Mestalla")
-  } else if (lugar_seleccionado == "Playa de la Malvarrosa") {
-    nodo_entrada <- get_start_node(grafo,  "Playa de la Malvarrosa")
-  } else if (lugar_seleccionado == "Bioparc Valencia") {
-    nodo_entrada <- get_start_node(grafo,  "Bioparc Valencia")
-  } else if (lugar_seleccionado == "Estación Valencia-Cabanyal") {
-    nodo_entrada <- get_start_node(grafo,  "Estación Valencia-Cabanyal")
-  } else if (lugar_seleccionado == "Ciudad de las Artes y las Ciencias") {
-    nodo_entrada <- get_start_node(grafo,  "Ciudad de las Artes y las Ciencias")
-  } else if (lugar_seleccionado == "Catedral de Valencia") {
-    nodo_entrada <- get_start_node(grafo,  "Catedral de Valencia")
-  } else {
-    stop("El lugar seleccionado no está en la lista de opciones.")
-  }
-  
-  # Definir la distancia
-  medida <- E(grafo)$length # Medida de distancia
-  
-  # Obtener las estaciones cercanas
-  estaciones_selec <- get_gtfs_distance(gtfs_metro, grafo, nodo_entrada, distancia) 
-  
-  # Obtener el subgrafo
-  g1 <- isochron(grafo, nodo_entrada$x, nodo_entrada$y, medida, distancia)
-  
-  # Encontrar el nodo de inicio
-  start_node <- find_nearest_node(grafo, nodo_entrada$x, nodo_entrada$y)
-  
-  # Dibujar el subgrafo
-  mi_mapa <- plot_isochron(g1, start_node, estaciones_selec, distancia)
-  
-  return(mi_mapa)
-}
-
-mi_mapa <- crear_mapa(lugar_seleccionado, 1000)
-mi_mapa
+posibles_distancias <- c(100, 500, 750, 1000, 2000)
 
 
-info_mapas <- data.frame(lugar = character(), mapa = )
+
+posibles_puntos1 <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia")
+posibles_distancias1 <- c(100, 200)
+
 
 for (lugar in posibles_puntos) {
-  print(lugar)
-  mi_mapa <- crear_mapa(lugar, 1000)
-  print(mi_mapa)
+  for (distancia in posibles_distancias) {
+    sitio <- paste(lugar, distancia)
+    sitio_sin_espacios <- gsub(" ", "", sitio)  
+    ruta <- paste0("./mapas/", sitio_sin_espacios, ".rds")
+    
+    nodo_entrada <- get_start_node(grafo, lugar)
+    
+    estaciones_selec <- get_gtfs_distance(gtfs_metro, grafo, nodo_entrada, distancia)
+    
+    subgraf <- isochron(grafo, nodo_entrada$x, nodo_entrada$y, E(grafo)$length, distancia)
+    
+    start_node <- find_nearest_node(grafo, nodo_entrada$x, nodo_entrada$y)
+    
+    mapa <- plot_isochron(subgraf, start_node, estaciones_selec, distancia)
+    
+    saveRDS(mapa, file = ruta)
+    print(ruta)
+  }
 }
 
-```{r}
+rutas <- c()
 
+for (lugar in posibles_puntos) {
+  for (distancia in posibles_distancias) {
+    sitio <- paste(lugar, distancia)
+    sitio_sin_espacios <- gsub(" ", "", sitio)  
+    ruta <- paste0("./mapas/", sitio_sin_espacios, ".rds")
+    
+    rutas <- append(rutas, ruta)
+  }
+}
 
+rutas
+ruta_aux <- "./mapas/EstacióndelNorteValencia200.rds"
 
+# Cargar el objeto desde disco
+datos_cargados <- readRDS(ruta_aux)
+datos_cargados
+
+for (i in lengrutas) {
+  
+  dist = re.search(r'(\d+)', ruta)
+  m <- readRDS(ruta)
+  lugar <- 
+  nodo_entr <- get_start_node(grafo, place)
+  
+  gtfs.stop.emt <- get_gtfs_distance(gtfs_emt, grafo, nodo_entr, distancia)
+  
+  m <- m %>% addMarkers(lng = X, lat = Y, popup = gtfs.stop.emt[gtfs.stop.emt$distance_to_start < dist,]$station_name, color = "red")
+  
+  
+}
+
+# Duplicar cada elemento por 5
+lugares_duplicados <- rep(posibles_puntos, each = 5)
+lugares_duplicados
+
+for (i in leght(rutas)) {
+  ruta <- rutas[i]
+  
+  dist = re.search(r'(\d+)', ruta)
+  m <- readRDS(ruta)
+  
+  lugar <- lugares_duplicados[i]
+    
+  nodo_entr <- get_start_node(grafo, lugar)
+  
+  gtfs.stop.emt <- get_gtfs_distance(gtfs_emt, grafo, nodo_entr, distancia)
+  
+  m <- m %>% addMarkers(lng = X, lat = Y, popup = gtfs.stop.emt[gtfs.stop.emt$distance_to_start < dist,]$station_name, color = "red")
+  
+}
+
+place <- "Plaza de Toros de Valencia"
+
+nodo_entr <- get_start_node(grafo, place)
+
+ruta <- "./mapas/PlazadeTorosdeValencia100.rds"
+
+numero <- as.numeric(gsub("[^0-9]", "", ruta))
+
+prova1 <- get_gtfs_distance(gtfs_emt, grafo, nodo_entr, numero)
+
+gtfs_emt$stops
+
+lugares <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia",
+             "Universidad Politecnica de Valencia", "Estadio Mestalla", 
+             "Playa de la Malvarrosa", "Bioparc Valencia", 
+             "Estación Valencia-Cabanyal", "Ciudad de las Artes y las Ciencias", 
+             "Catedral de Valencia")
+
+# Duplicar cada elemento por 5
+lugares_duplicados <- rep(lugares, each = 5)
+lugares_duplicados
 
 
 
