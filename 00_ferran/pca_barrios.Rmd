@@ -1,0 +1,254 @@
+---
+title: "PCA Barrios"
+author: "Ferran"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center",
+                      fig.pos = "H")
+library(factoextra)
+library(FactoMineR)
+library(dplyr)
+library(ggplot2)
+```
+
+# Análisis de Componentes Principales de los Barrios
+
+Una vez obtenidos los distintos índices que caracterizan los barrios, vamos a proceder a realizar un PCA para ver si hay ciertas correlaciones entre los distintos índices obtenidos, de forma que se pueden obtener distintas conclusiones.
+
+```{r}
+info_barrios_indices <- read.csv("../00_marc/dataTratada/barrios_indices.csv")
+
+info_barrios_indices[is.na(info_barrios_indices)] <- 0
+rownames(info_barrios_indices) <- info_barrios_indices$barrio
+#info_barrios_indices <- select(info_barrios_indices, -barrio)
+data_pca <- select(info_barrios_indices, -barrio)
+```
+
+Vamos a añadir, antes de empezar un nuevo índice que recoja si tiene o no algún servicio único.
+
+## Selección del número de componentes
+
+Vamos a proceder a analizar cual será el número de variables que tomemos para nuestro modelo. Este proceso lo llevaremos a cabo mediante el uso de un gráfico de valores propios, en el cual podremos observar la varianza explicada por cada componente y, además, se añade una línea que representa cual sería la varianza explicada si todas las componentes tuviesen la misma importancia.
+
+
+```{r}
+res.pca <- PCA(data_pca, graph = FALSE, ncp = Inf, quali.sup = "Distrito", 
+               quanti.sup = c("Universidad", "Hospitales", "Estadio", "Cargadores"))
+
+eig.val <- get_eigenvalue(res.pca)
+Vmedia <- 100/nrow(eig.val)
+fviz_eig(res.pca, addlabels = TRUE, main = "Eigenvalues", barcolor = "black", 
+         barfill = "mediumaquamarine") + 
+  geom_hline(yintercept = Vmedia, linetype = 2, color = "red")
+```
+
+Una vez realizado el gráfico, se observa que el codo recae sobre la segunda componente, ya que a partir de esta la varianza explicada disminuye de forma casi constante. No obstante, con el uso de ambas componentes no se consigue un gran porcentaje de explicación. Es por ello, que se decide tomar también la tercera componente, ya que esta tampoco se encuentra muy alejada de la línea que marca el promedio de varianza explicada.
+
+Con estas tres componentes conseguimos explicar un `r round(eig.val[3,3], 2)`% de la varianza total de nuestros datos, el cual resulta ser un porcentaje bastante aceptable.
+
+
+```{r, include = FALSE}
+eig.val
+K <- 3
+
+res.pca <- PCA(data_pca, graph = FALSE, ncp = K, quali.sup = "Distrito", quanti.sup = c("Universidad", "Hospitales", "Estadio", "Cargadores"))
+```
+
+## Validación del modelo
+
+El objetivo principal de este apartado es detectar la existencia de valores anómalos multidimensionales que puedan afectar al resultado del PCA. Además, el análisis de los valores de la suma de cuadrados residuales, también determinará como de preciso es el modelo, mostrando si existen muchos barrios mal representados, tendrán valores muy elevados, o, por lo contrario, bien representados si muestran valores bajos, dentro de unos límites.
+
+### Búsqueda de anómalos severos
+
+Mediante el estadístico $T^2$ de Hotelling, se puede detectar la existencia de valores anómalos multidimensionales. Este estadístico se calcula para cada observación y se compara con un valor crítico que depende del número de componentes y del número de observaciones. En este caso, se ha tomado un nivel de significancia del 95% y del 99%.
+
+
+```{r}
+misScores <- res.pca$ind$coord[,1:K]
+
+miT2 <- colSums(t(misScores**2)/eig.val[1:K,1])
+
+I <- nrow(info_barrios_indices)
+
+F95 <- K*(I**2 - 1)/(I*(I - K)) * qf(0.95, K, I-K)
+F99 <- K*(I**2 - 1)/(I*(I - K)) * qf(0.99, K, I-K)
+
+plot(1:length(miT2), miT2, type = "p", xlab = "Barrios", ylab = "T2", main = "Valores T2")
+abline(h = F95, col = "orange", lty = 2, lwd = 2)
+abline(h = F99, col = "red3", lty = 2, lwd = 2)
+```
+
+Mediante el gráfico obtenido, se encuentra un claro barrio destinado a ser considerado como anómalo sever e incluso a eliminarlo de nuestro, ya que aquellos individuos con altos valores de $T^2$ de Hotelling, afectan a la dirección que toma la componente, ya que aumenta la varianza en una dirección que no es relevante.
+
+El barrio con este elevado valor es La Roqueta, vamos a proceder a analizar que variables son las que mayor contribución tienen sobre el estadístico, para determinar si los eliminamos de nuestro modelo o, por el contrario, los mantenemos.
+
+
+
+```{r, include = FALSE}
+anomala <- which(miT2 > F99)
+miT2[anomala]
+```
+```{r}
+contribT2 <- function (X, scores, loadings, eigenval, observ, cutoff = 2) {
+  # X is data matrix and must be centered (or centered and scaled if data were scaled)
+  misScoresNorm = t(t(scores**2) / eigenval)
+  misContrib = NULL
+  for (oo in observ) {
+    #print(rownames(scores)[oo])
+    #print(scores[oo,])
+    misPCs = which(as.numeric(misScoresNorm[oo,]) > cutoff)
+    lacontri = sapply(misPCs, function (cc) (scores[oo,cc]/eigenval[cc])*loadings[,cc]*X[oo,])
+    lacontri = rowSums((1*(sign(lacontri) == 1))*lacontri)
+    misContrib = cbind(misContrib, lacontri)
+  }
+  colnames(misContrib) = rownames(misScoresNorm[observ,])
+  return(misContrib)
+}
+
+
+barriosCE <- select(data_pca, -c("Distrito", "Universidad", "Estadio", "Hospitales", "Cargadores"))
+barriosCE <- scale(barriosCE, center = TRUE, scale = TRUE)
+X <- as.matrix(barriosCE)
+# Calculamos los loadings a partir de las coordenadas de las variables
+# ya que la librería FactoMineR nos devuelve los loadings ponderados 
+# por la importancia de cada componente principal.
+
+misLoadings <- sweep(res.pca$var$coord, 2, sqrt(res.pca$eig[1:K,1]), FUN="/")
+# Calculamos las contribuciones
+mycontrisT2 <- contribT2(X = X, scores = misScores, loadings = misLoadings, 
+                        eigenval = eig.val[1:K,1], observ = which.max(miT2),
+                        cutoff = 2)
+
+par(mar = c(10,2.3,3,1))
+barplot(mycontrisT2[,1],las=2, #cex.names = 0.5,
+        main= "Observación: LA ROQUETA ", col = "mediumaquamarine",)
+```
+
+Con el gráfico realizado, se observa que la variable causante de que el barrio de La Roqueta tenga un alto $T^2$ es `paradas_metro`, la cual indica el número de paradas de metro o tranvía que hay en el barrio. Teniendo esto en cuenta, ya que dicha variable es importante para nuestro análisis y al eliminarla se podría peder información relevante, que, al tener 72 observaciones, poseer una por encima del 99% es aceptable y que tan solo hay dos que superen el 95%, se decide conservar el barrio en nuestro modelo.
+
+
+### Búsqueda de anómalos moderados
+
+Una vez vistos los anómalos severos, vamos a buscar si en nuestro modelo hay anómalos moderados. Además, con estos podremos ver si nuestro modelo es representativo de la realidad o no.
+
+
+```{r}
+myE <- X - misScores %*% t(misLoadings) 
+mySCR <- rowSums(myE^2)  
+
+g <- var(mySCR)/(2*mean(mySCR))
+h <- (2*mean(mySCR)^2)/var(mySCR)
+
+chi2lim <- g*qchisq(0.95, df = h)
+chi2lim99 <- g*qchisq(0.99, df = h)
+
+
+plot(1:length(mySCR), mySCR, type = "l", main = "Distancia al modelo", 
+     ylab = "SCR", xlab = "Barrio", ylim = c(0,11))
+abline(h = chi2lim, col = "orange", lty = 2, lwd = 2)
+abline(h = chi2lim99, col = "red3", lty = 2, lwd = 2)
+```
+
+Con el gráfico concluimos que el modelo es bastante representativo, ya que no hay un gran número de barrios cuya suma de cuadrados residuales sea muy elevada, tan solo encontramos uno que supere el límite del 99%. Además, esto ayuda a confirmar nuestra decisión de mantener el barrio de La Roqueta en nuestro modelo, ya que no está afectando a que la representación del resto de barrios no sea correcta.
+
+```{r, include = FALSE}
+barrios_sin_anomala <- data_pca[-44,]
+
+res.pca1 <- PCA(barrios_sin_anomala, graph = FALSE, ncp = 3, quali.sup = "Distrito", quanti.sup = c("Universidad", "Hospitales", "Estadio", "Cargadores"))
+
+eig.val <- get_eigenvalue(res.pca1)
+Vmedia <- 100/nrow(eig.val)
+fviz_eig(res.pca1, addlabels = TRUE, main = "Eigenvalues") + geom_hline(yintercept = Vmedia, linetype = 2)
+```
+```{r, include=FALSE}
+eig.val
+```
+```{r, include=FALSE}
+K <- 3
+misScores <- res.pca1$ind$coord[,1:K]
+
+miT2 <- colSums(t(misScores**2)/eig.val[1:K,1])
+
+I <- nrow(barrios_sin_anomala)
+
+F95 <- K*(I**2 - 1)/(I*(I - K)) * qf(0.95, K, I-K)
+F99 <- K*(I**2 - 1)/(I*(I - K)) * qf(0.99, K, I-K)
+
+plot(1:length(miT2), miT2, type = "p", xlab = "Barrios", ylab = "T2")
+abline(h = F95, col = "orange", lty = 2, lwd = 2)
+abline(h = F99, col = "red3", lty = 2, lwd = 2)
+```
+```{r, include=FALSE}
+misLoadings <- sweep(res.pca1$var$coord, 2, sqrt(res.pca1$eig[1:K,1]), FUN="/")
+
+barriosCE <- select(barrios_sin_anomala, -c("Distrito", "Universidad", "Estadio", "Hospitales", "Cargadores"))
+barriosCE <- scale(barriosCE, center = TRUE, scale = TRUE)
+X <- as.matrix(barriosCE)
+
+myE <- X - misScores %*% t(misLoadings) 
+mySCR <- rowSums(myE^2)  
+
+g <- var(mySCR)/(2*mean(mySCR))
+h <- (2*mean(mySCR)^2)/var(mySCR)
+
+chi2lim <- g*qchisq(0.95, df = h)
+chi2lim99 <- g*qchisq(0.99, df = h)
+
+
+plot(1:length(mySCR), mySCR, type = "l", main = "Distancia al modelo", 
+     ylab = "SCR", xlab = "Barrio", ylim = c(0,11))
+abline(h = chi2lim, col = "orange", lty = 2, lwd = 2)
+abline(h = chi2lim99, col = "red3", lty = 2, lwd = 2)
+```
+
+## Interpretación de los resultados
+
+Puesto que nuestro principal objetivo era visualizar si hay algunas condiciones que afecten a la cantidad de servicios de transporte público, vamos a centrarnos en la búsqueda de correlaciones entre variables.
+
+### Gráficos de variables
+
+
+```{r, fig.width = 10, fig.height = 5}
+library(gridExtra)
+
+var1 <- fviz_pca_var(res.pca, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             repel = TRUE, title = "Componente 1 y 2", axes = c(1,2), )
+
+var2 <- fviz_pca_var(res.pca, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             repel = TRUE, title = "Componentes 2 y 3", axes = c(2,3))
+grid.arrange(var1, var2, ncol = 2)
+```
+
+
+Una vez obtenidos ambos gráficos y antes de empezar con la búsqueda de correlaciones, procedemos a descartar que las variables que hacen referencia a servicios únicos, `Universidad`, `Hospitales`, `Estadio` y `Cargadores`, no afectarán a la existencia de más o menos paradas de metro o tranvía o bus en dicho barrio. Esto se debe a que no están muy bien representadas por nuestro modelo.
+
+Pasando al resto de variables, en el gráfico que representa las componentes 1 y 2, una alta correlación positiva entre el índice de riqueza y que el barrio tenga más metros de carril bici y zonas verdes, que se recoge en la variable `eco_friendly`. Además, estas dos también se correlacionan positivamente con la variable `otros_servicios`. Esto nos puede indicar que conforme mayor es la riqueza del barrio, en el se invierte más en ofrecer otros servicios como pueden ser puestos de comida como bares y restaurantes, tiendas, etc. además de una mayor cantidad de zonas verdes y carriles bici. Continuando con el mismo gráfico, también se observa una alta correlación positiva entre el número de paradas de bus y el de valenbisi. Esto puede indicar que en los barrios donde hay más paradas de bus, también hay más paradas de valenbisi, lo cual puede ser debido a que en estos barrios hay una mayor demanda de transporte público.
+
+Proseguimos con el gráfico entre las componentes 2 y 3, en este encontramos dos correlaciones negativas interesantes, la primera de ellas es entre las variables del número de paradas de bus y el índice de riqueza, lo cual nos indica que, en aquellos barrios en los que su índice de riqueza es mayor, se tiende a tener un menor número de paradas de bus, esto puede deberse a que en estos haya una menor demanda de transporte público. La segunda correlación negativa es entre el número de paradas de metro y la cantidad de metros de carril bici y zonas verdes. Esto puede deberse a que las paradas de metros pueden situarse en zonas más céntricas en las que, puede haber posibilidades de incluir carriles bici, pero ser más complicado incluir zonas verdes, al estar ya muy edificadas. Cabe destacar que esta no resulta ser muy fiable, ya que la variable `eco_friendly` no está muy bien representada por estas componentes.
+
+
+
+
+
+
+```{r, include=FALSE}
+fviz_pca_ind(res.pca, habillage = "Distrito", label = F, title = "Individuos", axes = c(1,2))
+```
+
+```{r})
+```
+
+```{r})
+```
+
+```{r})
+```
+
+

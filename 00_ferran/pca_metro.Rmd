@@ -48,7 +48,7 @@ library(ggplot2)
 datos_pca <- carac_metro %>% select(-stop_id, -stop_name, -stop_lat, -stop_lon)
 datos_pca <- scale(datos_pca)
 res.pca <- PCA(datos_pca, scale.unit = FALSE, graph = FALSE)
-fviz_eig(res.pca, addlabels = TRUE)+
+fviz_eig(res.pca, addlabels = TRUE, barcolor = "black", barfill = "mediumaquamarine")+
   geom_hline(yintercept = 100/length(res.pca$eig[,1]), linetype = 2, color="red")
 ```
 
@@ -60,9 +60,9 @@ Con todo lo dicho, se van a tomar un total de 2 componentes para la realización
 
 # Validación del modelo
 
-Una vez concluido el número de componentes y realizado el análisis, se debe proceder a la validación del modelo. Para ello, primero se evaluará la existencia de outliers extremos, que pueden afectar en gran medida al modelo y, posteriormente, se buscarán outliers moderados, que, no afectan en gran magnitud al modelo, pero si que son indicativos de si el modelo se está ajustando realmente a la realidad o no.
+Una vez concluido el número de componentes y realizado el análisis, se debe proceder a la validación del modelo. Para ello, primero se evaluará la existencia de outliers severo, que pueden afectar en gran medida al modelo y, posteriormente, se buscarán outliers moderados, que, no afectan en gran magnitud al modelo, pero si que son indicativos de si el modelo se está ajustando realmente a la realidad o no.
 
-## Búsqueda de outliers extremos
+## Búsqueda de outliers severo
 
 ```{r t2}
 K <- 2
@@ -96,7 +96,7 @@ Vamos a analizar la contribución de cada variable a la distancia de estas dos e
 
 ```{r contri_T2}
 library(gridExtra)
-contribT2 = function (X, scores, loadings, eigenval, observ, cutoff = 2) {
+contribT2 <- function (X, scores, loadings, eigenval, observ, cutoff = 2) {
   # X is data matrix and must be centered (or centered and scaled if data were scaled)
   misScoresNorm = t(t(scores**2) / eigenval)
   misContrib = NULL
@@ -122,9 +122,11 @@ mis_contrib <- contribT2(datos_pca, scores = res.pca$ind$coord, loadings = misLo
 
 par(mar = c(10,2.5,3,1))
 barplot(mis_contrib[,1],las=2, cex.names = 0.8,
-        main= paste0("Observación: ", carac_metro$stop_name[observ_max[1]]))
+        main= paste0("Observación: ", carac_metro$stop_name[observ_max[1]]),
+        col = "mediumaquamarine")
 barplot(mis_contrib[,2],las=2, cex.names = 0.8,
-        main= paste0("Observación: ", carac_metro$stop_name[observ_max[2]]))
+        main= paste0("Observación: ", carac_metro$stop_name[observ_max[2]]),
+        col = "mediumaquamarine")
 
 ```
 
@@ -176,7 +178,7 @@ datos_pca2 <- carac_metro %>% select(c("neighbours_in", "neighbours_out", "betwe
 datos_pca2 <- scale(datos_pca2)
 res.pca2 <- PCA(datos_pca2, scale.unit = FALSE, graph = FALSE)
 eig.val2 <- get_eigenvalue(res.pca2)
-fviz_eig(res.pca2, addlabels = TRUE)+
+fviz_eig(res.pca2, addlabels = TRUE, barcolor = "black", barfill = "mediumaquamarine")+
   geom_hline(yintercept = 100/length(res.pca2$eig[,1]), linetype = 2, color="red")
 ```
 
@@ -199,7 +201,7 @@ kable(carac_metro[which(carac_metro$neighbours_in != carac_metro$neighbours_out)
 
 Siguiendo con el resto de variables, las variables de promedio de metros por hora y gente transportada por hora están también muy correlacionadas por el hecho de que la capacidad de transporte viene en función del numero de metros y tranvías que pasan por la estación, ya que, como no se disponen de los datos reales de número de gente que transita la estación, se ha multiplicado el número de metros y tranvías por la capacidad promedio de ambos. Sin embargo, hay diferencia entre ambas, ya que el número de metros recoge la cantidad promedio de metros o tranvías que pasan por hora sin diferenciar, mientras que la capacidad si que diferencia entre si el transporte es metro o tranvía, ya que no tienen la misma capacidad.
 
-Pasando ahora a las variables que no tienen dependencias entre ellas, se observa una fuerte correlación multidimensional entre las variables mencionadas anteriormente, sobre cantidad de metros y personas y el closeness, que indica si la estación permite llegar al resto de estaciones con una menor distancia, y el número de líneas. Esto tiene sentido, ya que resulta lógico que las esaciones más centrales de la red tenga una mayor tránsito de metros y, por tanto, pasen más líneas distintas por ellas.
+Pasando ahora a las variables que no tienen dependencias entre ellas, se observa una fuerte correlación positiva multidimensional entre las variables mencionadas anteriormente, sobre cantidad de metros y personas y el closeness, que indica si la estación permite llegar al resto de estaciones con una menor distancia, y el número de líneas. Esto tiene sentido, ya que resulta lógico que las estaciones más centrales de la red tenga una mayor tránsito de metros y, por tanto, pasen más líneas distintas por ellas.
 
 
 ## Gráfico de individuos
