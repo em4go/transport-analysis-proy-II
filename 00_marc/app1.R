@@ -12,8 +12,12 @@ library(igraph)
 library(osmdata)
 
 ui <- fluidPage(theme = shinytheme("yeti"),
+                #tags$head(
+                #  tags$link(rel = "stylesheet", type = "text/css", href = "fondo.css")
+                #),
+                
                 navbarPage(
-                  # theme = "cerulean",  # <--- To use a theme, uncomment this
+                 #theme = "cerulean",  # <--- To use a theme, uncomment this
                   "Proyecto2",
                   tabPanel("Metro",
                            
@@ -35,15 +39,38 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                              
                              selectInput("metros", "Número de metros de radio", 
                                          choices = c(100, 500, 750, 1000, 2000)
-                                         )
+                                         ),
+                             fluidRow(
+                               div(p("Recuerda que una persona normal, tiende a recorrer 100 metros en 1 o 2 minutos"), class = "text-center")
+                             )
                            ) # sidebarPanel
                            
                   ), # Navbar 1, tabPanel
-                  tabPanel("Bus", "JAJA"), # Navbar 2, tabPanel
+                  tabPanel("Ratio",
+                           fluidRow(
+                             column(width = 6,
+                                    tags$h3("Mapa Metro", align = "left"),
+                                    leafletOutput("mapaMetro", height = 300)
+                             ), 
+                             column(width = 6,
+                                    tags$h3("Mapa Bus", align = "left"),
+                                    leafletOutput("mapaBus", height = 300)
+                             )
+                           ), # fluidRow
+                           fluidRow(
+                             column(width = 6,
+                                    tags$h3("Mapa Valenbici", align = "left"),
+                                    leafletOutput("mapaValenbici", height = 300)
+                             ),
+                             column(width = 6,
+                                    tags$h3("Mapa Eco", align = "left"),
+                                    leafletOutput("mapaEco", height = 300)
+                             )
+                           ) # fluidRow
+                  ), # Navbar 2, tabPanel
+                
                   tabPanel("Ferri", "LAI CABRÓN")
-                  ) # NavbarPage
-                ) # ui fluidPage
-
+            )) # NavbarPage # ui fluidPage
 
 server1 <- function(input, output){
   observe({
@@ -53,11 +80,22 @@ server1 <- function(input, output){
     ruta <- paste0("./mapas/", sitio_sin_espacios, ".rds")
     mapa <- readRDS(ruta)
     
+    
     output$mapa <- renderLeaflet(mapa)
+    
+    mapaMetro <- readRDS("./mapas/ratio_metro.rds")
+    mapaBus <- readRDS("./mapas/ratio_emt.rds")
+    mapaValenbici <- readRDS("./mapas/ratio_valenbisi.rds")
+    mapaEco <- readRDS("./mapas/ratio_eco.rds")
+    
+    output$mapaMetro <- renderLeaflet(mapaMetro)
+    output$mapaBus <- renderLeaflet(mapaBus)
+    output$mapaValenbici <- renderLeaflet(mapaValenbici)
+    output$mapaEco <- renderLeaflet(mapaEco)
+    
   })
   
 } # server
-
 
 # Create Shiny object
 shinyApp(ui = ui, server = server1)
