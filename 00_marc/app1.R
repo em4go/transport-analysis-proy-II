@@ -45,7 +45,30 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                              )
                            ) # sidebarPanel
                            
-                  ), # Navbar 1, tabPanel
+                  ),
+                  tabPanel("Bus",
+                           
+                           mainPanel(
+                             h1("MAPA Resultante"),
+                             
+                             leafletOutput("mapaBUS", height = 500)
+                           ), # mainPanel
+                           
+                           
+                           sidebarPanel(
+                             tags$h3("SELECCIONAR LAS VARIABLES"),
+                             
+                             selectInput("lugarbus", "Indique donde se encuentra",
+                                         choices = c("Plaza de Toros de Valencia", "Estación del Norte Valencia")
+                             ),
+                             
+                             selectInput("metrosbus", "Número de metros de radio", 
+                                         choices = c(100, 200)
+                             )
+                           )
+                             
+                           
+                           ),# Navbar 1, tabPanel
                   tabPanel("Ratio",
                            fluidRow(
                              column(width = 6,
@@ -67,9 +90,7 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                                     leafletOutput("mapaEco", height = 300)
                              )
                            ) # fluidRow
-                  ), # Navbar 2, tabPanel
-                
-                  tabPanel("Ferri", "LAI CABRÓN")
+                  ) # Navbar , tabPanel
             )) # NavbarPage # ui fluidPage
 
 server1 <- function(input, output){
@@ -80,8 +101,16 @@ server1 <- function(input, output){
     ruta <- paste0("./mapas/", sitio_sin_espacios, ".rds")
     mapa <- readRDS(ruta)
     
-    
     output$mapa <- renderLeaflet(mapa)
+    
+    
+    sitiobus <- paste(input$lugarbus, input$metrosbus)
+    sitio_sin_espaciosbus <- gsub(" ", "", sitiobus)  
+    rutabus <- paste0("./mapas/", sitio_sin_espaciosbus, "BUS.rds")
+    mapabus <- readRDS(rutabus)
+    
+    output$mapaBUS <- renderLeaflet(mapabus)
+
     
     mapaMetro <- readRDS("./mapas/ratio_metro.rds")
     mapaBus <- readRDS("./mapas/ratio_emt.rds")

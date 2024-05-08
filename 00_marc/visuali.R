@@ -53,6 +53,7 @@ start_node <- find_nearest_node(grafo, X, Y) # Nodo de inicio
 plot_isochron(g1, start_node, estaciones_selec, distancia) # Dibujar el subgrafo
 
 # ----------------------------------------------------------------------------------------------------------------------------
+#METROO
 # ----------------------------------------------------------------------------------------------------------------------------
 posibles_puntos <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia",
                      "Universidad Politecnica de Valencia", "Estadio Mestalla", "Playa de la Malvarrosa", "Bioparc Valencia", 
@@ -90,10 +91,27 @@ for (lugar in posibles_puntos) {
 }
 
 # ----------------------------------------------------------------------------------------------------------------------------
-
+#BUS
 posibles_puntos1 <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia")
 posibles_distancias1 <- c(100, 200)
 
-
-
-
+for (lugar in posibles_puntos1) {
+  for (distancia in posibles_distancias1) {
+    sitio <- paste(lugar, distancia, "BUS")
+    sitio_sin_espacios <- gsub(" ", "", sitio)  
+    ruta <- paste0("./mapas/", sitio_sin_espacios, ".rds")
+    
+    nodo_entrada <- get_start_node(grafo, lugar)
+    
+    estaciones_selec <- get_gtfs_distance(gtfs_emt, grafo, nodo_entrada, distancia)
+    
+    subgraf <- isochron(grafo, nodo_entrada$x, nodo_entrada$y, E(grafo)$length, distancia)
+    
+    start_node <- find_nearest_node(grafo, nodo_entrada$x, nodo_entrada$y)
+    
+    mapa <- plot_isochron(subgraf, start_node, estaciones_selec, distancia)
+    
+    saveRDS(mapa, file = ruta)
+    print(ruta)
+  }
+}
