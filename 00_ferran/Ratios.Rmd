@@ -1,0 +1,162 @@
+---
+title: "Ratios de comparación"
+author: "Ferran Aragó"
+date: "r sys.Date() format('%d %B, %Y')"
+output: 
+  html_document:
+    toc: true
+    number_sections: false
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(geojsonsf)
+library(sf)
+library(arrow)
+library(leaflet)
+```
+
+
+# Lectura de los datos
+
+Vamos a utilizar tanto el dataframe en el que se han dividido los datos por la superficie como el que no, ya que así ya disponemos de la información de los datos en función de la superficie y podemos calcular nuevos ratios con los originales.
+
+```{r read_data}
+df <- read_parquet("../data/info_general_barrio.parquet")
+df[is.na(df)] <- 0
+df$barrio <- as.factor(df$barrio)
+df_superficie <- read.csv("../00_marc/dataTratada/barrios_indices.csv")
+df_superficie[is.na(df_superficie)] <- 0
+df_superficie$barrio <- as.factor(df_superficie$barrio)
+
+a <- cbind(barrio = df$barrio,geojson_sf(df$geo_shape))
+
+df_superficie <- merge(a, df_superficie, by = "barrio", all.y=TRUE)
+```
+
+
+```{r}
+poligonos <- cbind(barrio = df$barrio,geojson_sf(df$geo_shape))
+```
+
+
+## Ratios de comparación
+
+### Número de paradas de metro, bus y valenbisi por $m^2$
+
+Para este podemos utilizar directamente el dataframe con los datos divididos por la superficie.
+
+
+
+```{r}
+#Gráfico de barras como el anterior pero en orden decreciente de la variable numérica y seleccionando los 10 primeros
+
+ratio_sup <- df_superficie %>% select(barrio, paradas_metro, paradas_emt, estaciones_valenbisi)
+
+
+ratio_sup <- ratio_sup %>% arrange(desc(paradas_emt))
+ratio_sup[1:10,] %>%
+  ggplot(aes(x = reorder(barrio, -paradas_emt), y = paradas_emt)) +
+  geom_bar(stat = "identity", fill = "mediumaquamarine")+  
+  labs(x = "Nombres", y = "Valores", title = "Gráfico de Barras")+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+``` 
+
+
+
+```{r}
+colors_emt <- colorNumeric(palette = "YlOrRd", domain = df_superficie$paradas_emt)
+
+m_emt <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = df_superficie, fillColor = ~colors_emt(paradas_emt),
+              fillOpacity = 1, weight = 0.5, color = "black",
+              popup = ~paste(barrio, "<br>", "Paradas de bus por m2: ", paradas_emt))
+m_emt
+saveRDS(m_emt, file = "../00_marc/mapas/ratio_emt.rds")
+             
+```
+
+
+
+
+
+```{r}
+colors_metro <- colorNumeric(palette = "YlOrRd", domain = df_superficie$paradas_metro)
+
+m_metro <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = df_superficie, fillColor = ~colors_metro(paradas_metro),
+              fillOpacity = 1, weight = 0.5, color = "black",
+              popup = ~paste(barrio, "<br>", "Paradas de metro por m2: ", paradas_metro))
+m_metro
+saveRDS(m, file = "../00_marc/mapas/ratio_metro.rds")
+             
+```
+
+
+
+
+
+
+```{r}
+colors_valenbisi <- colorNumeric(palette = "YlOrRd", domain = df_superficie$estaciones_valenbisi)
+
+m_valenbisi <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = df_superficie, fillColor = ~colors_valenbisi(estaciones_valenbisi),
+              fillOpacity = 1, weight = 0.5, color = "black",
+              popup = ~paste(barrio, "<br>", "Estaciones de valenbisi por m2: ", estaciones_valenbisi))
+m_valenbisi
+saveRDS(m, file = "../00_marc/mapas/ratio_valenbisi.rds")
+             
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+colors_eco <- colorNumeric(palette = "YlOrRd", domain = df_superficie$eco_friendly)
+
+m_eco <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = df_superficie, fillColor = ~colors_eco(eco_friendly),
+              fillOpacity = 1, weight = 0.5, color = "black",
+              popup = ~paste(barrio, "<br>", "Paradas de bus por m2: ", eco_friendly))
+m_eco
+saveRDS(m, file = "../00_marc/mapas/ratio_eco.rds")
+             
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
