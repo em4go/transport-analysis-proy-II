@@ -368,5 +368,9 @@ write_parquet(resultado_amenity, "00_hervas/amenity.parquet")
 write_parquet(resultado_monuments,"00_hervas/monuments.parquet")
 write_parquet( resultado_sport,"00_hervas/sport.parquet")
 write_parquet(resultado_shop,"00_hervas/shop.parquet")
+
+write_parquet(resultado_university,"university.parquet")
+write_parquet(resultado_stadium,"stadium.parquet")
+
 ```
 

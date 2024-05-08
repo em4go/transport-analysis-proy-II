@@ -11,19 +11,24 @@ output:
       collapsed: false
       smooth_scroll: true
 ---
-
+En este documento, vamos a clasificar cada una de las secciones censales de los distritos, según el barrio al que pertenecen, para poder obtener la renta media per cápita de cada barrio.
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(arrow)
 
 ```
 
+
 ```{r}
 data<- read.csv2("seccions-censals-secciones-censales.csv")
+
 data_original<-data
+
 data$Código.Sección <- sprintf("%03d", data$Código.Sección)
 data$Código.Distrito <- sprintf("%02d", data$Código.Distrito)
+
 data$data_id_seccion<-paste0(data$Código.Distrito, data$Código.Sección)
+
 
 data[, c("latitud", "longitud")] <- as.data.frame(do.call(rbind, lapply(strsplit(data$geo_point_2d, ","), function(x) x)))
 
@@ -69,7 +74,7 @@ for (i in 1:nrow(secciones)) {
 ```{r}
 
 secciones<-subset(secciones, select=c("data_id_seccion" , "Barrio"))
-
+seccio
 ```
 
 ```{r}

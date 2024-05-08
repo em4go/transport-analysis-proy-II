@@ -1,0 +1,431 @@
+---
+title: "CLUSTERING BARRIOS"
+author: "ALEJANDRO"
+date: "2024-05-06"
+output: 
+  html_document:
+    toc: true
+    number_sections: false
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(cluster)
+library(FactoMineR)
+library(factoextra)
+library(NbClust)
+library(clValid)
+library(grid)
+library(gridExtra)
+library(geojsonsf)
+library(arrow)
+library(sf)
+library(leaflet)
+```
+
+#CLUSTERING DE BARRIOS
+
+##Lectura y preparación de datos
+
+
+
+```{r carga}
+#Obtenemos los datos del dataset completo de barrios
+dataBarrios <- read.csv("../00_marc/dataTratada/barrios_indices.csv", sep = ",")
+
+#Reemplazamos los valores NA por 0
+dataBarrios[is.na(dataBarrios)] <- 0
+
+#Asignamos los nombres de los barrios como índices
+rownames(dataBarrios) <- dataBarrios$barrio
+```
+
+##Selección de variables a utilizar y preparación de datos
+
+
+```{r elección variables}
+#Eliminamos las columnas que no son necesarias para el análisis
+dataBarrios2 <- subset(dataBarrios, select = -c(barrio, Distrito, Hospitales, Cargadores, Universidad, Estadio))
+
+#Escalamos los datos
+dataBarrios2 = scale(dataBarrios2, center = TRUE, scale = TRUE)
+```
+
+
+##Medida de distancia y tendencia de agrupamiento
+
+
+```{r mapa de calor euclidea}
+midist <- get_dist(dataBarrios2, stand = FALSE, method = "euclidean")
+fviz_dist(midist, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+
+```{r mapa de calor manhattan}
+midist2 <- get_dist(dataBarrios2, stand = FALSE, method = "manhattan")
+fviz_dist(midist, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+
+```{r funcion Hopkins}
+
+calcular_hopkins_copia <- function (data, n, graph = TRUE, gradient = list(low = "red", 
+  mid = "white", high = "blue"), seed = 123, metodo = "euclidean") 
+{
+  set.seed(seed)
+  if (is.data.frame(data)) 
+    data <- as.matrix(data)
+  if (!(is.matrix(data))) 
+    stop("data must be data.frame or matrix")
+  if (n >= nrow(data)) 
+    stop("n must be no larger than num of samples")
+  if (!requireNamespace("reshape2", quietly = TRUE)) {
+    stop("reshape2 package needed for this function to work. Please install it.")
+  }
+  data <- na.omit(data)
+  rownames(data) <- paste0("r", 1:nrow(data))
+  plot <- NULL
+  if (graph) {
+    plot <- fviz_dist(stats::dist(data), order = TRUE, show_labels = FALSE, 
+      gradient = gradient)
+  }
+  p <- apply(data, 2, function(x, n) {
+    runif(n, min(x), max(x))
+  }, n)
+  k <- round(runif(n, 1, nrow(data)))
+  q <- as.matrix(data[k, ])
+  distp = rep(0, nrow(data))
+  distq = 0
+  minp = rep(0, n)
+  minq = rep(0, n)
+  for (i in 1:n) {
+    distp[1] <- get_dist(rbind(p[i, ], data[1, ]), method = metodo)
+    minqi <- get_dist(rbind(q[i, ], data[1, ]), method = metodo)
+    for (j in 2:nrow(data)) {
+      distp[j] <- get_dist(rbind(p[i, ], data[j, ]), method = metodo)
+      error <- q[i, ] - data[j, ]
+      if (sum(abs(error)) != 0) {
+        distq <- get_dist(rbind(q[i, ], data[j, ]), method = metodo)
+        if (distq < minqi) 
+          minqi <- distq
+      }
+    }
+    minp[i] <- min(distp)
+    minq[i] <- minqi
+  }
+  list(hopkins_stat = sum(minp)/(sum(minp) + sum(minq)), plot = plot)
+}
+
+```
+
+
+```{r hopkins euclidea}
+set.seed(100)
+myN = c(20, 35, 47, 60)  # m
+myhopkins = NULL
+myseed = sample(1:1000, 10)
+for (i in myN) {
+  for (j in myseed) {
+    tmp = calcular_hopkins_copia(data = dataBarrios2, n = i, graph = FALSE, seed = j)
+    myhopkins = c(myhopkins, tmp$hopkins_stat)
+  }
+}
+summary(myhopkins)
+
+
+
+```
+
+
+```{r Hopkins manhattan}
+set.seed(100)
+myN = c(20, 35, 47, 60)  # m
+myhopkins2 = NULL
+myseed = sample(1:1000, 10)
+for (i in myN) {
+  for (j in myseed) {
+    tmp = calcular_hopkins_copia(data = dataBarrios2, n = i, graph = FALSE, seed = j, metodo="manhattan")
+    myhopkins2 = c(myhopkins2, tmp$hopkins_stat)
+  }
+}
+summary(myhopkins2)
+```
+
+##Modelos jerárquicos
+
+###Ward
+
+```{r Ward}
+p1 = fviz_nbclust(x = dataBarrios2, FUNcluster = hcut, method = "silhouette", 
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE, 
+                  hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
+p2 = fviz_nbclust(x = dataBarrios2, FUNcluster = hcut, method = "wss", 
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE, 
+                  hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+```{r}
+ward.nbclust <- NbClust(data = dataBarrios2, diss = midist2, distance = NULL, 
+                        min.nc = 3, max.nc = 10, 
+                        method = "ward.D2", index ="all") 
+```
+
+
+```{r}
+clust1 <- hclust(midist2, method="ward.D2")
+
+grupos1 <- cutree(clust1, k=5)
+table(grupos1)
+```
+
+```{r}
+fviz_dend(clust1, k = 5,
+          cex = 0.5, color_labels_by_k = TRUE,
+          rect = TRUE, palette=c("#66ddaa", "#a56cc1","#f5587b","#2f89fc", "#ffd615")) 
+```
+
+
+```{r}
+fviz_cluster(object = list(data=dataBarrios2, cluster=grupos1), stand = FALSE,
+             ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
+             labelsize = 8, palette=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"))  +
+  labs(title = "Modelo jerarquico + Proyeccion PCA",
+       subtitle = "Dist euclidea, Metodo Ward, K=6") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+fviz_cluster(object = list(data=dataBarrios2, cluster=grupos1), stand = FALSE,
+             ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
+             labelsize = 8, axes=c(2,3),palette=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"))  +
+  labs(title = "Modelo jerarquico + Proyeccion PCA",
+       subtitle = "Dist euclidea, Metodo Ward, K=6") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+###COMPLETE
+
+```{r complete}
+p1 = fviz_nbclust(x = dataBarrios2, FUNcluster = hcut, method = "silhouette", 
+                  hc_method = "complet", k.max = 10, verbose = FALSE, 
+                  hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
+p2 = fviz_nbclust(x = dataBarrios2, FUNcluster = hcut, method = "wss", 
+                  hc_method = "complet", k.max = 10, verbose = FALSE, 
+                  hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+```{r}
+average.nbclust <- NbClust(data = dataBarrios2, diss = midist2, distance = NULL, 
+                        min.nc = 3, max.nc = 10, 
+                        method = "complet", index ="all") 
+```
+
+```{r}
+clust2 <- hclust(midist2, method="complet")
+grupos2 = cutree(clust2, k = 5)
+fviz_dend(clust2, k = 5,
+          cex = 0.5,
+          color_labels_by_k = TRUE, # colorear etiquetas por grupo
+          rect = TRUE) 
+```
+```{r}
+table(grupos2)
+```
+
+
+```{r}
+fviz_cluster(object = list(data=dataBarrios2, cluster=grupos2), stand = FALSE,
+             ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
+             labelsize = 8, palette=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"))  +
+  labs(title = "Modelo de la media + Proyeccion PCA",
+       subtitle = "Dist euclidea, Metodo Ward, K=5") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+
+```{r}
+fviz_cluster(object = list(data=dataBarrios2, cluster=grupos2), stand = FALSE,
+             ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
+             labelsize = 8, axes=c(2,3), palette=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"))  +
+  labs(title = "Modelo jerarquico + Proyeccion PCA",
+       subtitle = "Dist euclidea, Metodo Ward, K=5") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+
+##Modelos de partición
+
+###K-medias
+
+```{r k-means}
+p1 = fviz_nbclust(x = dataBarrios2, FUNcluster = kmeans, method = "silhouette", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "K-means")
+p2 = fviz_nbclust(x = dataBarrios2, FUNcluster = kmeans, method = "wss", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "K-means")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+```{r}
+kmeans.nbclust <- NbClust(data = dataBarrios2, diss = midist2, distance = NULL, 
+                        min.nc = 3, max.nc = 10, 
+                        method = "kmeans", index ="all") 
+```
+
+```{r}
+set.seed(100)
+clust3 <- kmeans(dataBarrios2, centers = 3, nstart = 20)
+table(clust3$cluster)
+```
+
+```{r}
+p1 = fviz_cluster(object = list(data=dataBarrios2, cluster=clust3$cluster), stand = FALSE,
+             ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
+             labelsize = 8)  +
+  labs(title = "K-MEDIAS + Proyeccion PCA",
+       subtitle = "Dist mahattan, K=7") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+p2 = fviz_cluster(object = list(data=dataBarrios2, cluster=clust3$cluster), stand = FALSE,
+             ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
+             labelsize = 8, axes = 2:3)  +
+  labs(title = "K-MEDIAS + Proyeccion PCA",
+       subtitle = "Dist manhattan, K=7") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+###PAM
+
+
+```{r k-medoides}
+p1 = fviz_nbclust(x = dataBarrios2, FUNcluster = pam, method = "silhouette", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+p2 = fviz_nbclust(x = dataBarrios2, FUNcluster = pam, method = "wss", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+```{r}
+clust4 <- pam(dataBarrios2, k = 7)
+table(clust4$clustering) 
+```
+
+```{r}
+p1 = fviz_cluster(object = list(data=dataBarrios2, cluster=clust4$clustering), stand = FALSE,
+             ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
+             labelsize = 8)  +
+  labs(title = "K-MEDOIDES + Proyeccion PCA",
+       subtitle = "Dist manhattan, K=7") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+p2 = fviz_cluster(object = list(data=dataBarrios2, cluster=clust4$clustering), stand = FALSE,
+             ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
+             labelsize = 8, axes = 2:3)  +
+  labs(title = "K-MEDOIDES + Proyeccion PCA",
+       subtitle = "Dist manhattan, K=7") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+##Modelos soft
+
+###FCM
+```{r algoritmo soft FCM}
+p1 = fviz_nbclust(x = dataBarrios2, FUNcluster = fanny, method = "silhouette", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+p2 = fviz_nbclust(x = dataBarrios2, FUNcluster = fanny, method = "wss", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+
+
+```{r}
+cluster5 <- fanny(x = dataBarrios2, diss = FALSE, k = 3, metric = "manhattan",
+                       stand = FALSE, memb.exp=1.5)
+head(cluster5$clustering)
+```
+```{r}
+cluster5$coeff
+head(cluster5$membership)
+```
+
+```{r}
+
+# Suponiendo que cluster5 es tu objeto de clustering
+fviz_cluster(object = cluster5, ellipse=TRUE, ellipse.type = "convex",
+             palette = "jco", labelsize=0) + 
+  theme_bw() + 
+  labs(title = "Fuzzy Cluster plot")
+
+```
+
+
+```{r}
+par(mfrow = c(1,3))
+plot(silhouette(grupos1, midist2), col=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"), 
+border=NA, main = "WARD")
+plot(silhouette(grupos2, midist2), col=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"), 
+border=NA, main = "AVERAGE")
+plot(silhouette(clust3$cluster, midist2), col=rainbow(3), border=NA, main = "K-MEDIAS")
+plot(silhouette(clust4$clustering, midist2), col=rainbow(7), border=NA, main = "K-MEDOIDES")
+```
+
+```{r}
+metodos = c("hierarchical","kmeans","pam")
+validacion = suppressMessages(clValid(dataBarrios2, nClust = 3:9, metric = "manhattan", 
+                      clMethods = metodos, 
+                      validation = c("internal", "stability"),
+                      method = "ward"))
+summary(validacion)
+```
+
+
+```{r}
+data_geo<-read_parquet("../data/info_general_barrio.parquet")
+
+dataBarrios3<-cbind(dataBarrios2, geojson_sf(data_geo$geo_shape))
+dataBarrios3$cluster<-grupos1
+
+```
+
+```{r}
+colors_cluster <- colorFactor(palette = c("#f5587b", "#f0f696","#66ddaa","#2f89fc", "#a56cc1"), domain = dataBarrios3$cluster)
+
+m <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = dataBarrios3, fillColor = ~colors_cluster(cluster), fillOpacity = 1, weight = 0.5, color = "black",
+              popup = rownames(dataBarrios3))
+m
+```
+```{r}
+saveRDS(m, file = "../00_marc/mapas/cluster_barrios.rds")
+```
+
+
