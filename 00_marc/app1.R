@@ -12,9 +12,9 @@ library(igraph)
 library(osmdata)
 
 ui <- fluidPage(theme = shinytheme("yeti"),
-                #tags$head(
-                #  tags$link(rel = "stylesheet", type = "text/css", href = "fondo.css")
-                #),
+                tags$head(
+                  tags$link(rel = "stylesheet", type = "text/css", href = "fondo.css")
+                ),
                 
                 navbarPage(
                  #theme = "cerulean",  # <--- To use a theme, uncomment this
@@ -90,12 +90,21 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                                     leafletOutput("mapaEco", height = 300)
                              )
                            ) # fluidRow
-                  ) # Navbar , tabPanel
+                  ), # Navbar , tabPanel
+                  tabPanel("Clustering de Barrios",
+                           
+                           mainPanel(
+                             h1("MAPA clusters"),
+                             
+                             leafletOutput("mapaClusters", height = 700)
+                           ), # mainPanel
+                           
+                  ),
             )) # NavbarPage # ui fluidPage
 
 server1 <- function(input, output){
   observe({
-    
+    #---METRO
     sitio <- paste(input$lugar, input$metros)
     sitio_sin_espacios <- gsub(" ", "", sitio)  
     ruta <- paste0("./mapas/", sitio_sin_espacios, ".rds")
@@ -103,7 +112,7 @@ server1 <- function(input, output){
     
     output$mapa <- renderLeaflet(mapa)
     
-    
+    #---BUS
     sitiobus <- paste(input$lugarbus, input$metrosbus)
     sitio_sin_espaciosbus <- gsub(" ", "", sitiobus)  
     rutabus <- paste0("./mapas/", sitio_sin_espaciosbus, "BUS.rds")
@@ -111,7 +120,7 @@ server1 <- function(input, output){
     
     output$mapaBUS <- renderLeaflet(mapabus)
 
-    
+    #---RATIO
     mapaMetro <- readRDS("./mapas/ratio_metro.rds")
     mapaBus <- readRDS("./mapas/ratio_emt.rds")
     mapaValenbici <- readRDS("./mapas/ratio_valenbisi.rds")
@@ -121,6 +130,10 @@ server1 <- function(input, output){
     output$mapaBus <- renderLeaflet(mapaBus)
     output$mapaValenbici <- renderLeaflet(mapaValenbici)
     output$mapaEco <- renderLeaflet(mapaEco)
+    
+    #---CLUSTERS
+    mapaclus <- readRDS("./mapas/cluster_barrios.rds")
+    output$mapaClusters <- renderLeaflet(mapaclus)
     
   })
   
