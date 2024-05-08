@@ -32,6 +32,7 @@ E(grafo)$length <- as.numeric(E(grafo)$length)
 ```{r}
 # Cargar el GTFS de Metrovalencia, para las paradas de metro
 gtfs_metro <- read_gtfs("../data/gtfs_data/transit_metrovalencia.zip")
+gtfs_emt <- read_gtfs("../data/gtfs_data/transit_emt_valencia.zip")
 ```
 
 ```{r}
@@ -124,6 +125,15 @@ get_gtfs_distance <- function(gtfs, grafo, nodo_entrada, distance) {
 ```
 
 ```{r}
+
+```
+
+```{r}
+
+```
+
+
+```{r}
 find_nearest_node <- function(graph, x_given, y_given) {
   distances <- sqrt((V(grafo)$y - y_given)^2 + (V(grafo)$x - x_given)^2)
   nearest_node_index <- as.numeric(which.min(distances))
@@ -159,4 +169,8 @@ start_node <- find_nearest_node(grafo, X, Y)
 ```{r}
 plot_isochron(g1, start_node, estaciones_selec, distancia)
 ```
+
+
+
+
 

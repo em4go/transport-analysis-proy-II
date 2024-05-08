@@ -58,8 +58,6 @@ posibles_puntos <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia
                      "Universidad Politecnica de Valencia", "Estadio Mestalla", "Playa de la Malvarrosa", "Bioparc Valencia", 
                      "Estación Valencia-Cabanyal", "Ciudad de las Artes y las Ciencias", "Catedral de Valencia")
 
-posibles_puntos1 <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia")
-
 lugar_seleccionado <- "Plaza de Toros de Valencia"
 
 posibles_distancias <- c(100, 500, 750, 1000, 2000)
@@ -91,80 +89,11 @@ for (lugar in posibles_puntos) {
   }
 }
 
-rutas <- c()
+# ----------------------------------------------------------------------------------------------------------------------------
 
-for (lugar in posibles_puntos) {
-  for (distancia in posibles_distancias) {
-    sitio <- paste(lugar, distancia)
-    sitio_sin_espacios <- gsub(" ", "", sitio)  
-    ruta <- paste0("./mapas/", sitio_sin_espacios, ".rds")
-    
-    rutas <- append(rutas, ruta)
-  }
-}
+posibles_puntos1 <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia")
+posibles_distancias1 <- c(100, 200)
 
-rutas
-ruta_aux <- "./mapas/EstacióndelNorteValencia200.rds"
-
-# Cargar el objeto desde disco
-datos_cargados <- readRDS(ruta_aux)
-datos_cargados
-
-for (i in lengrutas) {
-  
-  dist = re.search(r'(\d+)', ruta)
-  m <- readRDS(ruta)
-  lugar <- 
-  nodo_entr <- get_start_node(grafo, place)
-  
-  gtfs.stop.emt <- get_gtfs_distance(gtfs_emt, grafo, nodo_entr, distancia)
-  
-  m <- m %>% addMarkers(lng = X, lat = Y, popup = gtfs.stop.emt[gtfs.stop.emt$distance_to_start < dist,]$station_name, color = "red")
-  
-  
-}
-
-# Duplicar cada elemento por 5
-lugares_duplicados <- rep(posibles_puntos, each = 5)
-lugares_duplicados
-
-for (i in leght(rutas)) {
-  ruta <- rutas[i]
-  
-  dist = re.search(r'(\d+)', ruta)
-  m <- readRDS(ruta)
-  
-  lugar <- lugares_duplicados[i]
-    
-  nodo_entr <- get_start_node(grafo, lugar)
-  
-  gtfs.stop.emt <- get_gtfs_distance(gtfs_emt, grafo, nodo_entr, distancia)
-  
-  m <- m %>% addMarkers(lng = X, lat = Y, popup = gtfs.stop.emt[gtfs.stop.emt$distance_to_start < dist,]$station_name, color = "red")
-  
-}
-
-place <- "Plaza de Toros de Valencia"
-
-nodo_entr <- get_start_node(grafo, place)
-
-ruta <- "./mapas/PlazadeTorosdeValencia100.rds"
-
-numero <- as.numeric(gsub("[^0-9]", "", ruta))
-
-prova1 <- get_gtfs_distance(gtfs_emt, grafo, nodo_entr, numero)
-
-gtfs_emt$stops
-
-lugares <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia",
-             "Universidad Politecnica de Valencia", "Estadio Mestalla", 
-             "Playa de la Malvarrosa", "Bioparc Valencia", 
-             "Estación Valencia-Cabanyal", "Ciudad de las Artes y las Ciencias", 
-             "Catedral de Valencia")
-
-# Duplicar cada elemento por 5
-lugares_duplicados <- rep(lugares, each = 5)
-lugares_duplicados
 
 
 
