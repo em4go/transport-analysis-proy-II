@@ -98,7 +98,7 @@ m_metro <- leaflet() %>%
               fillOpacity = 1, weight = 0.5, color = "black",
               popup = ~paste(barrio, "<br>", "Paradas de metro por m2: ", paradas_metro))
 m_metro
-saveRDS(m, file = "../00_marc/mapas/ratio_metro.rds")
+saveRDS(m_metro, file = "../00_marc/mapas/ratio_metro.rds")
              
 ```
 
@@ -116,7 +116,7 @@ m_valenbisi <- leaflet() %>%
               fillOpacity = 1, weight = 0.5, color = "black",
               popup = ~paste(barrio, "<br>", "Estaciones de valenbisi por m2: ", estaciones_valenbisi))
 m_valenbisi
-saveRDS(m, file = "../00_marc/mapas/ratio_valenbisi.rds")
+saveRDS(m_valenbisi, file = "../00_marc/mapas/ratio_valenbisi.rds")
              
 ```
 
@@ -140,7 +140,7 @@ m_eco <- leaflet() %>%
               fillOpacity = 1, weight = 0.5, color = "black",
               popup = ~paste(barrio, "<br>", "Paradas de bus por m2: ", eco_friendly))
 m_eco
-saveRDS(m, file = "../00_marc/mapas/ratio_eco.rds")
+saveRDS(m_eco, file = "../00_marc/mapas/ratio_eco.rds")
              
 ```
 
