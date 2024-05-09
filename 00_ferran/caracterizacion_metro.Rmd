@@ -1072,7 +1072,6 @@ caracteristicas_estaciones <- left_join(vecinos, betweenness, by = "stop_id") %>
   left_join(metros_por_franja_t, by = "stop_id") %>%
   select(-stop_name) %>%
   left_join(lines_per_station, by = "stop_id") %>%
-  select(-lines) %>%
   left_join(capacidad_estaciones, by = "stop_id") %>%
   left_join(capacidad_promedio_hora, by = "stop_id") %>%
   left_join(promedio_metros_hora, by = "stop_id")

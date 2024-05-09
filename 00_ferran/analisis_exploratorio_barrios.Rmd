@@ -216,7 +216,7 @@ Con ambos gráficos comprobamos que es un problema general de los distritos. Sob
 
 Teniendo esto en cuenta, decidimos eliminar ambos distritos de nuestra base de datos.
 
-También se han dividido todas las variables numéricas por su
+También se han dividido todas las variables numéricas por su superficie para que puedan ser comparadas entre los barrios, ya que, de no ser así, podría haber barrios con valores más elevados tan solo porque abarcan una mayor superficie.
 
 ```{r base_final}
 df_final <- df2[which(df2$distrito != "POBLATS DEL NORD" & df2$distrito != "POBLATS DEL SUD"),]
@@ -225,7 +225,7 @@ df_numerico <- df_final %>% select(-c("barrio", "distrito", "geo_shape", "precio
 p <- df_numerico %>% apply(2, function(x) x / df_numerico$superficie_barrio)
 p <- data.frame(p) %>% select(-superficie_barrio)
 
-df_final <- cbind(barrio = df_final$barrio, p, distrito = df_final$distrito,
+df_final_sup <- cbind(barrio = df_final$barrio, p, distrito = df_final$distrito,
                   superficie_barrio = df_final$superficie_barrio, precio_alquiler = df_final$precio_alquiler)
 ```
 
@@ -242,10 +242,13 @@ Vamos a proceder a crear distintos índices que caractericen a cada barrio.
 
 
 ```{r write_data}
-write_parquet(df_final, "../data/info_general_barrio_final.parquet")
-write.csv(df_final, "../data/info_general_barrio_final.csv")
+write_parquet(df_final_sup, "../data/info_general_barrio_final.parquet")
+write.csv(df_final_sup, "../data/info_general_barrio_final.csv")
 
-summary(df_final)
+
+write_parquet(df_final, "../data/info_general_barrio.parquet")
+write.csv(df_final, "../data/info_general_barrio.csv")
+summary(df_final_sup)
 ```
 
 Decidimos conservar la variable `monuments` ya que resulta lógico que no hayan muchos barrios con monumentos históricos y puede resultar interesante para los análisis posteriores porque puede ser un factor que permita diferenciar entre barrios más antiguos y barrios más modernos.

@@ -1,0 +1,91 @@
+---
+title: "Relación de ambas caracterizaciones"
+author: "Ferran Aragó"
+date: "r sys.Date()"
+output: pdf_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(sf)
+library(geojsonsf)
+library(dplyr)
+library(arrow)
+```
+
+# Función para establecer el barrio
+
+Primero cargamos la función que nos ayuda a automatiza la búsqueda de el barrio al que pertenece un punto. De esta forma tan solo necesitamos iterar sobre los puntos que deseamos localizar.
+
+```{r}
+establecer_barrio<- function(punto, info_poligonos) {
+  # Recibe un objeto de tipo punto y un dataframe con la información de los polígonos y el barrio
+  b <- unlist(st_within(punto, info_poligonos$geometry))
+  if (length(b) == 0) {
+    return(NA)
+  } else {
+    return(info_poligonos$barrio[b])
+  }
+}
+```
+
+
+# Carga de datos
+
+Los datos que vamos a utilizar en un principio son, el dataframe de caracterización de los metros y el dataframe con los polígonos de los barrios. Este segundo tendrá las características de los barrios pero no son las utilizadas para los distintos análisis.
+
+```{r data_charge}
+carac_metro <- read_parquet("../data/caracteristicas_metro.parquet")
+poligonos_barrios <- read_parquet("../data/info_general_barrio.parquet")
+```
+
+
+# Búsqueda de los barrios
+
+Ahora ya pasamos a establecer el barrio al que pertenece cada estación. Para ello, en primer lugar, convertimos las latitudes y longitudes de cada una de las estaciones a un objeto de tipo punto y con estos, ya utilizamos nuestra función para obtener el barrio al que pertenece cada una.
+
+```{r barrios_estaciones}
+# En la siguiente función, el parámetro crs indica el sistema de referencia de coordenadas
+estaciones <- st_as_sf(carac_metro, coords = c("stop_lon", "stop_lat"), crs = 4326)
+poligonos_barrios <- cbind(poligonos_barrios, geojson_sf(poligonos_barrios$geo_shape))
+
+
+estaciones$barrio <- sapply(1:nrow(estaciones), function(i) {
+  establecer_barrio(estaciones[i,], poligonos_barrios)
+})
+
+carac_metro <- merge(carac_metro, estaciones[,c("stop_id", "barrio")], by = "stop_id", all.x = TRUE)
+```
+
+Ahora que ya tenemos el barrio en el que se encuentra cada estación, vamos a añadir sobre este dataset la información que tenemos sobre los barrios.
+
+Vamos a seleccionar las columnas respectivas a los índices calculados sobre los barrios además de toda la información que se ha utilizado para calcular estos. No se utilizarán los datos por metro cuadrado para el este dataset porque esto se hizo para poder comparar las medidas entre los barrios, como no es este el caso, se conservarán los datos originales.
+
+```{r}
+barrios <- read.csv("../00_marc/dataTratada/barrios_indices.csv")
+barrios_total <- read.csv("../00_marc/dataTratada/barrios_final.csv")
+carac_metro_barrio <- data.frame()
+
+carac_metro_barrio <- barrios %>% select(-paradas_metro, -paradas_emt, -estaciones_valenbisi) %>%
+  merge(carac_metro, by = "barrio", all.y = TRUE)
+carac_metro_barrio <- poligonos_barrios %>% select(-paradas_metro, -geo_shape, -precio_alquiler, 
+                                                   -geometry, -distrito) %>%
+  merge(carac_metro_barrio, by = "barrio", all.y = TRUE)
+carac_metro_barrio <- barrios_total %>% select(barrio, RENTA_BRUTA, SALARIO, Precio_alquiler.m2, 
+                                               Precio_venta.m2) %>%
+  merge(carac_metro_barrio, by = "barrio", all.y = TRUE)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
