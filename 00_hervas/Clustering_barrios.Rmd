@@ -26,13 +26,14 @@ library(geojsonsf)
 library(arrow)
 library(sf)
 library(leaflet)
+library(kableExtra)
 ```
 
-#CLUSTERING DE BARRIOS
+# CLUSTERING DE BARRIOS
 
-##Lectura y preparación de datos
+## Lectura y preparación de datos
 
-
+Utilizaremos los mismos datos que los usado en el Análisis de Componentes Principales (PCA), que contiene indices de cada barrio, de nivel económico, grado de eco-friendly, y cantidad de servicios que tiene el barrio, además del numero de paradas de metro, de paradas de emt, estaciones de valenbisi. Todo esto por m2 de superficie. También tenemos unas variables binarias de si el barrio tiene o no, hospitales, cargadores de coches eléctricos, universidades y estadios y el distrito al que pertenece el barrio.
 
 ```{r carga}
 #Obtenemos los datos del dataset completo de barrios
@@ -45,8 +46,9 @@ dataBarrios[is.na(dataBarrios)] <- 0
 rownames(dataBarrios) <- dataBarrios$barrio
 ```
 
-##Selección de variables a utilizar y preparación de datos
+## Selección de variables a utilizar y preparación de datos
 
+Nuestro objetivo es agrupar los barrios en función de sus características, por lo que eliminaremos las variables que no son necesarias para el análisis, es decir la variables categóricas (barrio, ya que se han asignado como nombre de filas, y distrito) y la variables binarias ya que hay muy pocos barrios que tengan valor 1 y complica mucho la elección de la distancias para el análisis. Además, escalaremos los datos para que tengan media 0 y desviación estándar 1 ya que las variables tienen magnitudes muy distintas.
 
 ```{r elección variables}
 #Eliminamos las columnas que no son necesarias para el análisis
@@ -57,7 +59,10 @@ dataBarrios2 = scale(dataBarrios2, center = TRUE, scale = TRUE)
 ```
 
 
-##Medida de distancia y tendencia de agrupamiento
+## Medida de distancia y tendencia de agrupamiento
+
+Para la elección de la medida de distancia, decidiremos entre la distancia euclidea y la distancia de manhattan ya que queremos agrupar por barrios que tengan valores similares en las variables nombradas, no perfilies similares en las variables, por lo que descartamos medidas de similitud.
+Para elegir entre la distancia euclidea y la de manhattan, realizaremos un mapa de calor y calcularemos el estadístico de Hopkins para cada una de las distancias.
 
 
 ```{r mapa de calor euclidea}
@@ -72,7 +77,7 @@ midist2 <- get_dist(dataBarrios2, stand = FALSE, method = "manhattan")
 fviz_dist(midist, show_labels = TRUE, lab_size = 0.3,
           gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
 ```
-
+Observamos que los mapas de calor para ambas distancias son muy similares, por lo que no podemos decidir entre una u otra solo con este análisis. Así que nos apoyaremos el estadístico de Hopkins para decidir entre una u otra. Para ello, definimos una función que nos permite calcular el estadístico para cualquier tipo de distancia. 
 
 ```{r funcion Hopkins}
 
@@ -157,10 +162,19 @@ for (i in myN) {
 }
 summary(myhopkins2)
 ```
+Observasmos que el estadístico de Hopkins para la distancia  de es ligeramente superior al de la distancia euclidea, por lo que utilizaremos la distancia de manhattan para el análisis de clustering, salvo para el método de k-medias ya que solo usa distancia euclídea.
 
-##Modelos jerárquicos
 
-###Ward
+## Modelos
+
+En este análisis vamos a comparar por un lado, modelos jerárquicos, Ward y Complete, y por otro lado, modelos de partición, K-medias y K-medoides. Además, vamos a comparar estos modelos con un modelo soft, Fuzzy C-means (FCM). 
+Para la elección del número de clusters, combinaremos el análisis del coeficiente de Silhouette con la variabilidad intra-cluster.
+
+## Modelos jerárquicos
+
+Se han probado todo los modelos jerárquicos disponibles en R, (single,complete,average y ward), pero single y average se han descartado paara el análisis ya que han proporcionado clusters muy desequilibrados. Por lo que solo mostraremos los resultados de los métodos Ward y Complete.
+
+### Ward
 
 ```{r Ward}
 p1 = fviz_nbclust(x = dataBarrios2, FUNcluster = hcut, method = "silhouette", 
@@ -171,50 +185,66 @@ p2 = fviz_nbclust(x = dataBarrios2, FUNcluster = hcut, method = "wss",
                   hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
 grid.arrange(p1, p2, nrow = 1)
 ```
+Los resultados del análisis de Silhouette nos indican que el número óptimos de clusters es 2, pero la variabilidad intra-cluster es muy alta. El siguiente número de clusters más óptimo es 5, y la variabilidad intra-cluster es mucho menor, además parece el punto en el que se crea el codo.
+Así que elegimos 5 como el número de clusters para este método.
 
+Además, vamos a utilizar la libreria NbClust que te proporciona el número de cluster óptimo en función de varios índices de validación.
 
 ```{r}
 ward.nbclust <- NbClust(data = dataBarrios2, diss = midist2, distance = NULL, 
                         min.nc = 3, max.nc = 10, 
                         method = "ward.D2", index ="all") 
 ```
+Según este método, el número óptimo de clusters es 5, que coincide con el número de clusters que habiamos seleccionado.
 
+Creamos a continuación los 5 clusters con el modelo jerárquico y el método de Ward. Dado que el número de observaciones lo permite, generaremos el dendrograma para visualizar la agrupación de los barrios.
 
 ```{r}
-clust1 <- hclust(midist2, method="ward.D2")
+ward <- hclust(midist2, method="ward.D2")
 
-grupos1 <- cutree(clust1, k=5)
-table(grupos1)
+ward5 <- cutree(ward, k=5)
+table(ward5)
 ```
 
 ```{r}
-fviz_dend(clust1, k = 5,
+fviz_dend(ward, k = 5,
           cex = 0.5, color_labels_by_k = TRUE,
           rect = TRUE, palette=c("#66ddaa", "#a56cc1","#f5587b","#2f89fc", "#ffd615")) 
 ```
+Observamos que hay un cluster con una sola observación, que seguramente sea una observación atípica. Además de este caso, los clusters no están muy desequilibrados.
 
+Ahora pasamos a ver un gráfico de scores de como se han agrupado los barrios en clusters, según las dos primeras componentes principales.
 
 ```{r}
-fviz_cluster(object = list(data=dataBarrios2, cluster=grupos1), stand = FALSE,
+fviz_cluster(object = list(data=dataBarrios2, cluster=ward5), stand = FALSE,
              ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
              labelsize = 8, palette=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"))  +
   labs(title = "Modelo jerarquico + Proyeccion PCA",
-       subtitle = "Dist euclidea, Metodo Ward, K=6") +
+       subtitle = "Dist manhattan, Metodo Ward, K=5") +
   theme_bw() +
   theme(legend.position = "bottom")
 ```
+Se observa como efectivamente, el cluster 5 que solo tiene una observación, es una observación atípica, ya que está muy alejada del resto de observaciones. Además, todos los clusters se diferencian bastante bien en las dos primeras componentes principales. Unicamente hay un pequeño solapamiento entre los clusters 1 y 2.
+
+Ahora vamos a ver este mismo gráfico pero sobre las componentes 2 y 3, para ver si los clusters 1 y 2 se diferencias más en estas componentes.
+
 
 ```{r}
-fviz_cluster(object = list(data=dataBarrios2, cluster=grupos1), stand = FALSE,
+fviz_cluster(object = list(data=dataBarrios2, cluster=ward5), stand = FALSE,
              ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
              labelsize = 8, axes=c(2,3),palette=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"))  +
   labs(title = "Modelo jerarquico + Proyeccion PCA",
-       subtitle = "Dist euclidea, Metodo Ward, K=6") +
+       subtitle = "Dist manhattan, Metodo Ward, K=5") +
   theme_bw() +
   theme(legend.position = "bottom")
 ```
+Este gráfico no nos aporta mucha información adicional, ya que los clusters 1 y 2 siguen solapándose ligeramente en las componentes 2 y 3. Sin embargo, dado que el solapamiento no es muy grande, no vamos a reducir el número de clusters.
 
-###COMPLETE
+
+### Complete
+Ahora pasamos al método jerárquico complete, en el que se realizaran los mismos métodos que en el método de Ward.
+
+
 
 ```{r complete}
 p1 = fviz_nbclust(x = dataBarrios2, FUNcluster = hcut, method = "silhouette", 
@@ -225,52 +255,61 @@ p2 = fviz_nbclust(x = dataBarrios2, FUNcluster = hcut, method = "wss",
                   hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
 grid.arrange(p1, p2, nrow = 1)
 ```
-
+Los resultados del análisis de Silhouette nos indican que el número óptimos de clusters es 5, y la variabilidad intra-cluster es bastante baja, por lo que seleccionamos al igual que con ward, 5 como el número de componentes principales.
 
 ```{r}
 average.nbclust <- NbClust(data = dataBarrios2, diss = midist2, distance = NULL, 
                         min.nc = 3, max.nc = 10, 
                         method = "complet", index ="all") 
 ```
+Además, la función NbClust también sugiere 5 como el número óptimo de clusters, reforzando nuestra elección.
 
 ```{r}
-clust2 <- hclust(midist2, method="complet")
-grupos2 = cutree(clust2, k = 5)
-fviz_dend(clust2, k = 5,
+complete <- hclust(midist2, method="complet")
+complete5 = cutree(complete, k = 5)
+fviz_dend(complete, k = 5,
           cex = 0.5,
           color_labels_by_k = TRUE, # colorear etiquetas por grupo
           rect = TRUE) 
 ```
+
+
 ```{r}
-table(grupos2)
+table(complete5)
 ```
 
 
 ```{r}
-fviz_cluster(object = list(data=dataBarrios2, cluster=grupos2), stand = FALSE,
+fviz_cluster(object = list(data=dataBarrios2, cluster=complete5), stand = FALSE,
              ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
              labelsize = 8, palette=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"))  +
-  labs(title = "Modelo de la media + Proyeccion PCA",
-       subtitle = "Dist euclidea, Metodo Ward, K=5") +
+  labs(title = "Modelo jerárquico + Proyeccion PCA",
+       subtitle = "Dist manhattan, Metodo complete, K=5") +
   theme_bw() +
   theme(legend.position = "bottom")
 ```
 
 
 ```{r}
-fviz_cluster(object = list(data=dataBarrios2, cluster=grupos2), stand = FALSE,
+fviz_cluster(object = list(data=dataBarrios2, cluster=complete5), stand = FALSE,
              ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
              labelsize = 8, axes=c(2,3), palette=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"))  +
   labs(title = "Modelo jerarquico + Proyeccion PCA",
-       subtitle = "Dist euclidea, Metodo Ward, K=5") +
+       subtitle = "Dist manhattan, Metodo complete, K=5") +
   theme_bw() +
   theme(legend.position = "bottom")
 ```
+El método complete nos proporciona resultados similares al método de ward, sin embargo, al representar el gráfico de scores sobre las dos primeras componentes, observamos que el cluster 2, se solapa tanto con el cluster 1 como con el cluster 4.
+Tras realizar la representación sobre las componentes 2 y 3, los clusters 2 y 4 se diferencian, pero al igual que con ward los cluster 1 y 2 se solapan ligeramente.
 
+Una diferencia que se puede observar entre los dos método jerárquicos, es que los clusters generados por complete, tienen ligeramente más variabilidad intra-cluster.
 
-##Modelos de partición
+## Modelos de partición
 
-###K-medias
+Ahora pasamos a los modelos de partición, donde se estudiaran tanto k-medias como PAM.
+
+### K-medias
+Como se ha nombrado anteriormente, el método de k-medias solo utiliza la distancia euclidea, por lo que no podemos utilizar la distancia de manhattan pese a que ha sido la seleccionada para nuestro análisis. Por lo que utilizaremos la distancia euclidea para este método.
 
 ```{r k-means}
 p1 = fviz_nbclust(x = dataBarrios2, FUNcluster = kmeans, method = "silhouette", 
@@ -282,64 +321,75 @@ p2 = fviz_nbclust(x = dataBarrios2, FUNcluster = kmeans, method = "wss",
 grid.arrange(p1, p2, nrow = 1)
 ```
 
+En este caso, según el análisis de Silhouette, el número óptimo de clusters es 3, pero la variabilidad intra-cluster es muy alta. El siguiente número de clusters más óptimo es 5, y aunque la variabilidad intra-cluster es menor, no queda claro que número de clusters escoger, por lo que nos ayudaremos de la función NbClust para decidir el número de clusters.
+
+
 ```{r}
-kmeans.nbclust <- NbClust(data = dataBarrios2, diss = midist2, distance = NULL, 
+kmeans.nbclust <- NbClust(data = dataBarrios2, diss = midist, distance = NULL, 
                         min.nc = 3, max.nc = 10, 
                         method = "kmeans", index ="all") 
 ```
+La función NbClust nos sugiere 7 como el número óptimo de clusters, por lo que vamos a utilizar este número de clusters para el análisis pese a que 3 también es bastante recomendado.
+
+
+Ahora realizamos el clustering con el método de k-medias con 7 clusters y mostramos los graficos de scores para las componentes 1 y 2 y 2 y 3.
 
 ```{r}
 set.seed(100)
-clust3 <- kmeans(dataBarrios2, centers = 3, nstart = 20)
-table(clust3$cluster)
+kmedias7 <- kmeans(dataBarrios2, centers = 7, nstart = 20)
+table(kmedias7$cluster)
 ```
 
 ```{r}
-p1 = fviz_cluster(object = list(data=dataBarrios2, cluster=clust3$cluster), stand = FALSE,
+p1 = fviz_cluster(object = list(data=dataBarrios2, cluster=kmedias7$cluster), stand = FALSE,
              ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
              labelsize = 8)  +
   labs(title = "K-MEDIAS + Proyeccion PCA",
-       subtitle = "Dist mahattan, K=7") +
+       subtitle = "Dist euclidean, K=7") +
   theme_bw() +
   theme(legend.position = "bottom")
-p2 = fviz_cluster(object = list(data=dataBarrios2, cluster=clust3$cluster), stand = FALSE,
+p2 = fviz_cluster(object = list(data=dataBarrios2, cluster=kmedias7$cluster), stand = FALSE,
              ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
              labelsize = 8, axes = 2:3)  +
   labs(title = "K-MEDIAS + Proyeccion PCA",
-       subtitle = "Dist manhattan, K=7") +
+       subtitle = "Dist euclidean, K=7") +
   theme_bw() +
   theme(legend.position = "bottom")
 grid.arrange(p1, p2, nrow = 1)
 ```
+En la primera y segunda componente encontramos solapamiento entre los clusters centrales, pero que consiguen diferenciarse en las componentes 2 y 3.
+Una diferencia que podemos observar respecto a los modelos jerárquicos es que pese a que k-medias ha proporcionado 7 clusters, la observación atípica que observabamos no está en un cluster propio, sino que está en un cluster con otras observaciones pese a estar muy lejos de ellas.
 
-
-###PAM
-
+### PAM
+Ahora vamos a realizar el clustering con el método de PAM, que es una versión más robusta de k-medias, ya que utiliza medoides en lugar de centroides. Además,  este nos permite utilizar la distancia de manhattan.
 
 ```{r k-medoides}
 p1 = fviz_nbclust(x = dataBarrios2, FUNcluster = pam, method = "silhouette", 
-             k.max = 10, verbose = FALSE) +
+             k.max = 10, verbose = FALSE, diss=midist2) +
   labs(title = "Numero optimo de clusters")
 p2 = fviz_nbclust(x = dataBarrios2, FUNcluster = pam, method = "wss", 
-             k.max = 10, verbose = FALSE) +
+             k.max = 10, verbose = FALSE, diss=midist2) +
   labs(title = "Numero optimo de clusters")
 grid.arrange(p1, p2, nrow = 1)
 ```
 
+En este caso, según el análisis de Silhouette, el número óptimo de clusters es 2, pero la variabilidad intra-cluster es muy alta. El siguiente número de clusters más óptimo es 7, donde la variabilidad intra-clusters pese a haber disminuido mucho, sigue siendo alta, pero debido a que aunque aumentemos más el número de clusters la variabilidad no va a disminuir mucho más, por lo que elegimos 7 como el número de componentes para este método.
+
+
 ```{r}
-clust4 <- pam(dataBarrios2, k = 7)
-table(clust4$clustering) 
+pam7 <- pam(dataBarrios2, k = 7, metric="manhattan")
+table(pam7$clustering) 
 ```
 
 ```{r}
-p1 = fviz_cluster(object = list(data=dataBarrios2, cluster=clust4$clustering), stand = FALSE,
+p1 = fviz_cluster(object = list(data=dataBarrios2, cluster=pam7$clustering), stand = FALSE,
              ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
              labelsize = 8)  +
   labs(title = "K-MEDOIDES + Proyeccion PCA",
        subtitle = "Dist manhattan, K=7") +
   theme_bw() +
   theme(legend.position = "bottom")
-p2 = fviz_cluster(object = list(data=dataBarrios2, cluster=clust4$clustering), stand = FALSE,
+p2 = fviz_cluster(object = list(data=dataBarrios2, cluster=pam7$clustering), stand = FALSE,
              ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
              labelsize = 8, axes = 2:3)  +
   labs(title = "K-MEDOIDES + Proyeccion PCA",
@@ -348,75 +398,131 @@ p2 = fviz_cluster(object = list(data=dataBarrios2, cluster=clust4$clustering), s
   theme(legend.position = "bottom")
 grid.arrange(p1, p2, nrow = 1)
 ```
-
-
-##Modelos soft
-
-###FCM
-```{r algoritmo soft FCM}
-p1 = fviz_nbclust(x = dataBarrios2, FUNcluster = fanny, method = "silhouette", 
-             k.max = 10, verbose = FALSE) +
-  labs(title = "Numero optimo de clusters")
-p2 = fviz_nbclust(x = dataBarrios2, FUNcluster = fanny, method = "wss", 
-             k.max = 10, verbose = FALSE) +
-  labs(title = "Numero optimo de clusters")
-grid.arrange(p1, p2, nrow = 1)
-```
+Este método, agrupa los barrios de manera similar al método de K-medias, sin embargo, los cluster que se solapan en las dos primeras componentes, no logran diferenciarse en las componentes 2 y 3, además se puede observar como la variabilidad intra-clusters es mayor, por lo que descartaremos este método.
 
 
 
+## Selección y validación del método de clustering
 
-```{r}
-cluster5 <- fanny(x = dataBarrios2, diss = FALSE, k = 3, metric = "manhattan",
-                       stand = FALSE, memb.exp=1.5)
-head(cluster5$clustering)
-```
-```{r}
-cluster5$coeff
-head(cluster5$membership)
-```
+A la vista de los resultados anteriores, no sabríamos por que método decantarnos, ya que todos han proporcionado resultados similares.
 
-```{r}
-
-# Suponiendo que cluster5 es tu objeto de clustering
-fviz_cluster(object = cluster5, ellipse=TRUE, ellipse.type = "convex",
-             palette = "jco", labelsize=0) + 
-  theme_bw() + 
-  labs(title = "Fuzzy Cluster plot")
-
-```
-
+Para tomar una decisión, analizaremos en primer lugar el coeficiente de Silhouette por cluster y por observación (no solamente el global como hasta ahora):
 
 ```{r}
 par(mfrow = c(1,3))
-plot(silhouette(grupos1, midist2), col=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"), 
+plot(silhouette(ward5, midist2), col=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"), 
 border=NA, main = "WARD")
-plot(silhouette(grupos2, midist2), col=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"), 
-border=NA, main = "AVERAGE")
-plot(silhouette(clust3$cluster, midist2), col=rainbow(3), border=NA, main = "K-MEDIAS")
-plot(silhouette(clust4$clustering, midist2), col=rainbow(7), border=NA, main = "K-MEDOIDES")
+plot(silhouette(complete5, midist2), col=c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"), 
+border=NA, main = "COMPLETE")
+plot(silhouette(kmedias7$cluster, midist), col=rainbow(7), border=NA, main = "K-MEDIAS")
+plot(silhouette(pam7$clustering, midist2), col=rainbow(7), border=NA, main = "K-MEDOIDES")
 ```
+A la vista de los resultados, pese a que tanto ward, como k-medias como complete presentan un silhouette global similar, complete presenta un mayor porcentaje de observaciones con silhouette negativo, por lo que descartamos este método.
+
+Ahora vamos a realizar un análisis de validación de los métodos de clustering, utilizando la librería clValid, que nos proporciona varios índices de validación interna y de estabilidad. Para así poder decidir entre los métodos de ward y k-medias.
+
+Al haber usado la distancia de manhattan, no podemos utilizar el método de k-medias, por lo que solo vamos a comparar los métodos de ward y complete. Y vamos a comparar los resultados con la distancia euclidea para el método de k-medias.
+
+
 
 ```{r}
-metodos = c("hierarchical","kmeans","pam")
+metodos = c("hierarchical","pam")
 validacion = suppressMessages(clValid(dataBarrios2, nClust = 3:9, metric = "manhattan", 
                       clMethods = metodos, 
                       validation = c("internal", "stability"),
                       method = "ward"))
 summary(validacion)
+
 ```
+
+```{r}
+validacion2 = suppressMessages(clValid(dataBarrios2, nClust = 3:9, metric = "euclidean", 
+                      clMethods = "kmeans", 
+                      validation = c("internal", "stability"),
+                      method = "ward"))
+summary(validacion2)
+```
+Observamos, que en la mayoría de estos índices, el método de k-medias es el más óptimo, con un número de clusters de 3, 7 y 9.
+Para decidir que número de clusters escoger, vamos a realizar un análisis de Silhouette por cluster y por observación para el método de k-medias con 3, 7 y 9 clusters.
 
 
 ```{r}
+set.seed(100)
+kmedias3 <- kmeans(dataBarrios2, centers = 3, nstart = 20)
+
+kmedias9 <- kmeans(dataBarrios2, centers = 9, nstart = 20)
+
+
+```
+
+```{r}
+par(mfrow = c(1,3))
+plot(silhouette(kmedias3$cluster, midist), col=rainbow(3), border=NA, main = "K-MEDIAS")
+plot(silhouette(kmedias7$cluster, midist), col=rainbow(7), border=NA, main = "K-MEDIAS")
+plot(silhouette(kmedias9$cluster, midist), col=rainbow(9), border=NA, main = "K-MEDIAS")
+```
+
+A la vista de los resultados, descartamos 9 como el número de componentes óptimos y el método con 3 7 componentes nos arrojan resultados muy similares, por ello, y debido a que ha sido el número de componentes más optimo por otros métodos de validación, seleccionaremos 7 como el número de clusters para el método de k-medias.
+
+Tras la validación, lo lógico sería seleccionar el método de k-medias con 7 cluster. Sin embargo, el método de Ward, a diferencia de k-medias, proporciona un cluster único para la observación atípica, que en el PCA se concluyo que dicha observación se debía a que dicho barrio contaba con muchas paradas de metro por $m^2$, dado que es una de las variables más importantes en nuestro análisis, nos interesa que tenga un cluster propio. Por ello, seleccionamos el método de Ward con 5 clusters como el método de clustering final.
+
+## Interpretación de los resultados del clustering
+
+Para facilitar la interpretación del clustering, vamos a volver a mostrar los graficos de scores y loading para las componentes 1 y 2 y las componentes 2 y 3, ya que en el PCA se seleccionaron 3 componentes principales. Además, los scores se colorearan según el cluster al que pertenecen.
+
+```{r}
+miPCA = PCA(dataBarrios2,scale.unit = FALSE, ncp=3, graph = FALSE)
+```
+
+```{r}
+p1 = fviz_pca_ind(miPCA, geom = "point", habillage = factor(ward5), addEllipses = FALSE, 
+             palette = c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"))
+p2 = fviz_pca_var(miPCA)
+grid.arrange(p1, p2, nrow = 1)
+```
+```{r}
+p1 = fviz_pca_ind(miPCA, geom = "point", habillage = factor(ward5), addEllipses = FALSE, axes=2:3 ,
+             palette = c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"))
+p2 = fviz_pca_var(miPCA, axes=2:3)
+grid.arrange(p1, p2, nrow = 1)
+```
+Para complementar o ayudar a la interpretación anterior de los clusters mediante PCA, vamos a realizar un gráfico descriptivo del perfil de cada cluster para observar las diferencias entre ellos. Para ello, calcularemos la media de cada variable para cada cluster.
+
+```{r}
+mediasCluster = aggregate(dataBarrios2, by = list("cluster" = ward5), mean)[,-1]
+rownames(mediasCluster) = paste0("c",1:5)
+kable(t(round(mediasCluster,2)))
+```
+```{r}
+matplot(t(mediasCluster), type = "l", col = c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"), ylab = "", xlab = "", lwd = 2,
+        lty = 1, main = "Perfil medio de los clusters", xaxt = "n")
+axis(side = 1, at = 1:ncol(dataBarrios2), labels = colnames(dataBarrios2), las = 2)
+legend("topleft", as.character(1:5), col = c("#f5587b", "#ffd615","#66ddaa","#2f89fc", "#a56cc1"), lwd = 2, ncol = 3, bty = "n")
+```
+A la vista de los gráficos, observamos que el cluster 1 se caracteriza por ser bastante lineal, es decir, no tiene valores ni muy elevados ni muy bajos en ninguna variable, presentando un buen número de paradas de metro y de emt por $m^2$, además es el cluster que presenta un menor indice de riqueza, es decir, es el cluster que agrupa los barrios más económicos.
+El cluster 2 se caracteriza por su grado de eco-friendly. 
+El cluster 3, destaca por presentar valores bajos en todas las variables, especialmente en paradad de emt, grado de eco-friendly, paradas de emt y estaciones de valenbisi. 
+El cluster 4 destaca por ser el cluster con un mayor indice de ricos, es decir, agrupa los barrios donde el nivel de vida es más costoso. Además, destaca por el gran número de servicios que presenta por $m^2$ así como su buen transporte, destacando en paradas de emt y estaciones de valenbisi.
+Por último, el cluster 5 destaca por la cantidad de transporte público que alberga, destacando grandiosamente en el número de paradas de metro, aunque el número de paradas de emt y estaciones de valenbisi también es bueno. Tambíen es un clster que agrupa barrios con un nivel de vida costoso.
+
+
+## Mapa de barrios por clusters
+
+Para finalizar y observar si tiene relación la geolocalización de los barrios con los clusters a los que pertenecen, vamos a representar un mapa de la ciudad de Valencia dividida por barrios, coloreando cada barrio según el cluster al que pertenece.
+
+
+```{r}
+
 data_geo<-read_parquet("../data/info_general_barrio.parquet")
 
 dataBarrios3<-cbind(dataBarrios2, geojson_sf(data_geo$geo_shape))
-dataBarrios3$cluster<-grupos1
+dataBarrios3$cluster<-ward5
 
 ```
 
 ```{r}
-colors_cluster <- colorFactor(palette = c("#f5587b", "#f0f696","#66ddaa","#2f89fc", "#a56cc1"), domain = dataBarrios3$cluster)
+
+colors_cluster <- colorFactor(palette =c("#f5587b", "#f0f696","#66ddaa","#2f89fc", "#a56cc1") , domain = dataBarrios3$cluster)
 
 m <- leaflet() %>%
   addTiles() %>%
@@ -424,8 +530,31 @@ m <- leaflet() %>%
               popup = rownames(dataBarrios3))
 m
 ```
+
+Al observar el mapa vemos que efectivamente, los clusters y la localización de los barrios estan relacionados. 
+
+El clsuter 4 (azul), era el cluster que agrupaba los barrios con un nivel de vida más costoso, y con mayor número de servicions disponible y efectivamente, estos barrios se encuentran en la zona más céntrica de la ciudad, donde el nivel de vida es más elevado y hay una gran afluencia.
+El cluster 3 (verde), agrupaba los barrios con valores bajos en todas las variables, y efectivamente, estos barrios se encuentran en la periferia de la ciudad, donde el nivel de vida es más bajo y hay menos afluencia.
+El cluster 5 (morado), únicamente contiene a un barrio (la Roqueta), que es el barrio con mayor número de transporte público, y tiene sentido, ya que se encuentra en la zona más céntrica de la ciudad, donde hay una mayor afluencia de transporte público y se encuentran las paradas de metro más concurridas. Además, al igual que los barrios del cluster 4, es un barrio que por su localización, tiene un nivel de vida más costoso.
+Por último, el resto de barrios que se encuentran en la zona intermedia de la ciudad, no presentan valores en las variables que los diferencien del resto de clusters, unicamente, los barrios del cluster 2 (amarillo), que presentan un grado de eco-friendly más elevado, debido a una mayor presencia de zonas verdes. Tiene sentido que las zonas verdes de la ciudad se alejen de la zonas más céntricas, debido a que son las zonas con más infraestructuras, por lo demás es lógico que no se agrupen en una zona concreta.
+
+
 ```{r}
-saveRDS(m, file = "../00_marc/mapas/cluster_barrios.rds")
+colors_cluster <- colorFactor(palette =rainbow(19) , domain = dataBarrios$Distrito)
+
+m2 <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = dataBarrios3, fillColor = ~colors_cluster(dataBarrios$Distrito), fillOpacity = 1, weight = 0.5, color = "black",
+              popup = rownames(dataBarrios3))
+m2
 ```
+
+
+```{r}
+#saveRDS(m, file = "../00_marc/mapas/cluster_barrios.rds")
+#saveRDS(m2, file = "../00_marc/mapas/distrito_barrios.rds")
+```
+
+
 
 
