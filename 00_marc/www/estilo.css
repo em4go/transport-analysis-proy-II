@@ -18,3 +18,8 @@ h3 {
   color: white;
   font-weight: bold;
 }
+
+h4 {
+  color: white;
+  line-height: 1.5;
+}

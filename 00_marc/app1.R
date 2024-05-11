@@ -78,14 +78,26 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                   ), # Navbar , tabPanel
                   tabPanel("Clustering de Barrios",
                            
-                           mainPanel(
-                             h1("MAPA clusters"),
-                             
-                             leafletOutput("mapaClusters", height = 700))
-                           ), # mainPanel
+                           fluidRow(
+                             column(width = 6,
+                                    tags$h3("Mapa Clustering", align = "left"),
+                                    leafletOutput("mapaClusters", height = 450)
+                             ),
+                             column(width = 6,
+                                    tags$h3("Mapa Distritos", align = "left"),
+                                    leafletOutput("mapaDistritos", height = 450)
+                             )
+                           ),
+                          
+                           tags$h4("El análisis del mapa muestra una relación entre la ubicación de los barrios y sus características. 
+                                   Los clusters 4 (azul) representan áreas céntricas con alto nivel de vida y servicios. 
+                                   El cluster 3 (verde) abarca barrios periféricos con menor nivel de vida. 
+                                   El cluster 5 (morado) destaca por su alta densidad de transporte público, 
+                                   especialmente en el centro. Otros barrios muestran similitudes, excepto por los 
+                                   del cluster 2 (amarillo), que tienen más zonas verdes.")
                            
                   ),# NavbarPage
-            )  # ui fluidPage
+            ))  # ui fluidPage
 
 server1 <- function(input, output){
   observe({
@@ -166,6 +178,10 @@ server1 <- function(input, output){
     #---CLUSTERS
     mapaclus <- readRDS("./mapas/cluster_barrios.rds")
     output$mapaClusters <- renderLeaflet(mapaclus)
+    
+    #---DISTRITOS
+    mapadist <- readRDS("./mapas/distrito_barrios.rds")
+    output$mapaDistritos <- renderLeaflet(mapadist)
     
   })
   
