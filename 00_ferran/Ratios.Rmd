@@ -75,9 +75,10 @@ m_emt <- leaflet() %>%
   addTiles() %>%
   addPolygons(data = df_superficie, fillColor = ~colors_emt(paradas_emt),
               fillOpacity = 1, weight = 0.5, color = "black",
-              popup = ~paste(barrio, "<br>", "Paradas de bus por m2: ", round(paradas_emt,8)))
+              popup = ~paste(barrio, "<br>", "Paradas de bus por m2: ", round(paradas_emt,8))) %>%
+  setView(lng = -0.376, lat = 39.47, zoom = 13)
 m_emt
-saveRDS(m_emt, file = "../00_marc/mapas/ratio_emt.rds")
+
              
 ```
 
@@ -92,9 +93,10 @@ m_metro <- leaflet() %>%
   addTiles() %>%
   addPolygons(data = df_superficie, fillColor = ~colors_metro(paradas_metro),
               fillOpacity = 1, weight = 0.5, color = "black",
-              popup = ~paste(barrio, "<br>", "Paradas de metro por m2: ", round(paradas_metro,8)))
+              popup = ~paste(barrio, "<br>", "Paradas de metro por m2: ", round(paradas_metro,8))) %>%
+  setView(lng = -0.376, lat = 39.47, zoom = 13)
 m_metro
-saveRDS(m_metro, file = "../00_marc/mapas/ratio_metro.rds")
+
              
 ```
 
@@ -110,9 +112,11 @@ m_valenbisi <- leaflet() %>%
   addTiles() %>%
   addPolygons(data = df_superficie, fillColor = ~colors_valenbisi(estaciones_valenbisi),
               fillOpacity = 1, weight = 0.5, color = "black",
-              popup = ~paste(barrio, "<br>", "Estaciones de valenbisi por m2: ", round(estaciones_valenbisi, 8)))
+              popup = ~paste(barrio, "<br>", "Estaciones de valenbisi por m2: ", round(estaciones_valenbisi, 8))) %>%
+  setView(lng = -0.376, lat = 39.47, zoom = 13)
+
 m_valenbisi
-saveRDS(m_valenbisi, file = "../00_marc/mapas/ratio_valenbisi.rds")
+
              
 ```
 
@@ -134,9 +138,10 @@ m_eco <- leaflet() %>%
   addTiles() %>%
   addPolygons(data = df_superficie, fillColor = ~colors_eco(eco_friendly),
               fillOpacity = 1, weight = 0.5, color = "black",
-              popup = ~paste(barrio, "<br>", "Índice ecológico : ", round(eco_friendly, 3)))
+              popup = ~paste(barrio, "<br>", "Índice ecológico : ", round(eco_friendly, 3))) %>%
+  setView(lng = -0.376, lat = 39.47, zoom = 13)
 m_eco
-saveRDS(m_eco, file = "../00_marc/mapas/ratio_eco.rds")
+
              
 ```
 
@@ -148,6 +153,12 @@ saveRDS(m_eco, file = "../00_marc/mapas/ratio_eco.rds")
 
 
 
+```{r}
+saveRDS(m_emt, file = "../00_marc/mapas/ratio_emt.rds")
+saveRDS(m_metro, file = "../00_marc/mapas/ratio_metro.rds")
+saveRDS(m_valenbisi, file = "../00_marc/mapas/ratio_valenbisi.rds")
+saveRDS(m_eco, file = "../00_marc/mapas/ratio_eco.rds")
+```
 
 
 
