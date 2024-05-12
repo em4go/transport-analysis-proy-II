@@ -155,17 +155,19 @@ m
 posibles_puntos <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia",
                      "Universidad Politecnica de Valencia", "Estadio Mestalla", "Playa de la Malvarrosa", "Bioparc Valencia", 
                      "Estación Valencia-Cabanyal", "Ciudad de las Artes y las Ciencias", "Catedral de Valencia", 
-                     "Pabellón Fuente de San Luís Valencia","Mercado Central Valencia")
+                     "Mercado Central Valencia")
+
+puntos_faltantes <-  c("Pabellón Fuente de San Luís Valencia","Mercado Central Valencia")
 
 lugar_seleccionado <- "Plaza de Toros de Valencia"
 
-posibles_distancias <- c(500, 750, 1000)
+posibles_distancias <- c(250, 500, 750, 1000)
 
 posibles_puntos1 <- c("Plaza de Toros de Valencia", "Estación del Norte Valencia")
 posibles_distancias1 <- c(300, 500)
 
-for (lugar in posibles_puntos1) {
-  for (distancia in posibles_distancias1) {
+for (lugar in posibles_puntos) {
+  for (distancia in posibles_distancias) {
     sitio <- paste(lugar, distancia)
     sitio_sin_espacios <- gsub(" ", "", sitio)  
     ruta <- paste0("./mapas/", sitio_sin_espacios, ".rds")
@@ -205,22 +207,25 @@ for (lugar in posibles_puntos1) {
 # ----------------------------------------------------------------------------------------------------------------------------
 #BUS
 
-for (lugar in posibles_puntos1) {
-  for (distancia in posibles_distancias1) {
+puntos_faltantes <-  c("Pabellón Fuente de San Luís Valencia") # ESTE EN BUS FALLA
+
+for (lugar in puntos_faltantes) {
+  for (distancia in posibles_distancias) {
     sitio <- paste(lugar, distancia)
     sitio_sin_espacios <- gsub(" ", "", sitio)  
     ruta <- paste0("./mapas/", sitio_sin_espacios, "BUS.rds")
     
     nodo_entrada <- get_start_node(grafo, lugar)
-    
+    print("estaciones 0")
     estaciones_selec <- get_gtfs_distance(gtfs_emt, grafo, nodo_entrada, distancia)
-    
+    print("estaciones 1")
     subgraf <- isochron(grafo, nodo_entrada$x, nodo_entrada$y, E(grafo)$length, distancia)
     
     start_node <- find_nearest_node(grafo, nodo_entrada$x, nodo_entrada$y)
     
     mapa <- plot_isochronBUS(subgraf, start_node, estaciones_selec, distancia)
-    
+    print("AQUI PASA")
+    print(estaciones_selec)
     if (nrow(estaciones_selec) > 0) {
       for (i in 1:nrow(estaciones_selec)) {
         estacion <- estaciones_selec[i,]
@@ -228,7 +233,7 @@ for (lugar in posibles_puntos1) {
         grafo1 <- add_vertices(grafo, 1, name = estacion$station_name, x = estacion$x, y = estacion$y)
         
         nodo <- find_nearest_node(grafo1, estacion$x, estacion$y)
-        
+        print("nodo esta bien")
         connect_nearest_nodes(grafo1, estacion$x, estacion$y)
         
         nodo_inicio <- get_start_node(grafo1, lugar)
@@ -243,13 +248,13 @@ for (lugar in posibles_puntos1) {
   }
 }
 
-#TODOS 
+#TODOS  #FALTA LA FONTENTA 
 
 posibles_puntos1 <- c("Estación del Norte Valencia")
 posibles_distancias1 <- c(500)
 
-for (lugar in posibles_puntos1) {
-  for (distancia in posibles_distancias1) {
+for (lugar in posibles_puntos) {
+  for (distancia in posibles_distancias) {
     sitio <- paste(lugar, distancia)
     sitio_sin_espacios <- gsub(" ", "", sitio)  
     ruta <- paste0("./mapas/", sitio_sin_espacios, "TODOS.rds")

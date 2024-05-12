@@ -36,10 +36,13 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                              tags$h3(HTML("<span style='color:black;'>SELECCIONAR LAS VARIABLES</span>")),
                              
                              selectInput("lugar", "Indique donde se encuentra",
-                                         choices = c("Plaza de Toros de Valencia", "Estación del Norte Valencia")),
+                                         choices = c("Plaza de Toros de Valencia", "Estación del Norte Valencia",
+                                                                        "Universidad Politecnica de Valencia", "Estadio Mestalla", "Playa de la Malvarrosa", "Bioparc Valencia", 
+                                                                        "Estación Valencia-Cabanyal", "Ciudad de las Artes y las Ciencias", "Catedral de Valencia", 
+                                                                        "Mercado Central Valencia")),
                              
                              selectInput("metros", "Número de metros de radio", 
-                                         choices = c(300, 500)
+                                         choices = c(250, 500, 750, 1000)
                                          ),
                              
                              checkboxGroupInput("transporte",
