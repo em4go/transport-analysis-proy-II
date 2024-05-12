@@ -76,7 +76,7 @@ m_emt <- leaflet() %>%
   addPolygons(data = df_superficie, fillColor = ~colors_emt(paradas_emt),
               fillOpacity = 1, weight = 0.5, color = "black",
               popup = ~paste(barrio, "<br>", "Paradas de bus por m2: ", round(paradas_emt,8))) %>%
-  setView(lng = -0.376, lat = 39.47, zoom = 13)
+  setView(lng = -0.377, lat = 39.465, zoom = 12)
 m_emt
 
              
@@ -94,7 +94,7 @@ m_metro <- leaflet() %>%
   addPolygons(data = df_superficie, fillColor = ~colors_metro(paradas_metro),
               fillOpacity = 1, weight = 0.5, color = "black",
               popup = ~paste(barrio, "<br>", "Paradas de metro por m2: ", round(paradas_metro,8))) %>%
-  setView(lng = -0.376, lat = 39.47, zoom = 13)
+  setView(lng = -0.377, lat = 39.465, zoom = 12)
 m_metro
 
              
@@ -113,7 +113,7 @@ m_valenbisi <- leaflet() %>%
   addPolygons(data = df_superficie, fillColor = ~colors_valenbisi(estaciones_valenbisi),
               fillOpacity = 1, weight = 0.5, color = "black",
               popup = ~paste(barrio, "<br>", "Estaciones de valenbisi por m2: ", round(estaciones_valenbisi, 8))) %>%
-  setView(lng = -0.376, lat = 39.47, zoom = 13)
+  setView(lng = -0.377, lat = 39.465, zoom = 12)
 
 m_valenbisi
 
@@ -139,7 +139,7 @@ m_eco <- leaflet() %>%
   addPolygons(data = df_superficie, fillColor = ~colors_eco(eco_friendly),
               fillOpacity = 1, weight = 0.5, color = "black",
               popup = ~paste(barrio, "<br>", "Índice ecológico : ", round(eco_friendly, 3))) %>%
-  setView(lng = -0.376, lat = 39.47, zoom = 13)
+  setView(lng = -0.377, lat = 39.465, zoom = 12)
 m_eco
 
              
