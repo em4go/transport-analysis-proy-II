@@ -277,8 +277,48 @@ Calcular la distancia de cada estación a un punto en el mapa
 puntos_mas_cercanos[puntos_mas_cercanos$distance_to_start < 500,]
 ```
 
-Dibujar las estaciones en un mapa
 
+Ahora vamos a sacar características a través de las distancias entre estaciones de metro. Estas serán:
+
+- Distancia mínima hasta la estación de metro más cercana
+- Distancia media de las 5 estaciones de metro más cercanas
+- Número de estaciones a las que se puede llegar con 1km de distancia andando
+
+Primero se va a crear una matriz de distancias entre estaciones de metro
+
+```{r}
+distancias_estaciones <- matrix(0, nrow = nrow(gtfs$stops), ncol = nrow(gtfs$stops))
+rownames(distancias_estaciones) <- gtfs$stops$stop_id
+colnames(distancias_estaciones) <- gtfs$stops$stop_id
+
+nodos_estaciones = c()
+
+for (i in 1:nrow(puntos_mas_cercanos)) {
+  stop <- gtfs$stops[i,]
+  punto_mas_cercano <- V(grafo)[which(puntos_mas_cercanos$station_id == stop$stop_id)]
+  nodos_estaciones <- c(nodos_estaciones, punto_mas_cercano)
+}
+
+```
+
+```{r}
+for (i in length(nodos_estaciones)) {
+  for (j in 1:length(nodos_estaciones)) {
+    distancias_estaciones[i, j] <- distances(grafo, nodos_estaciones[i], nodos_estaciones[j], weights = E(grafo)$length)
+  }
+  
+}
+```
+
+
+```{r}
+caracteristicas <- data.frame(station_id = character(), station_name = character(), min_distance = numeric(), mean_distance = numeric(), num_stations_within_1km = numeric())
+caracteristicas
+```
+
+
+```{r}
+```
 
 
 

@@ -232,6 +232,9 @@ unique_stops_by_route <- stops_by_route %>%
 head(unique_stops_by_route)
 ```
 
+
+
+
 Podemos ver las paradas de cualquier ruta sabiendo su id. Por ejemplo, para la ruta V3-56-182 (línea 3):
 
 ```{r}
@@ -404,6 +407,9 @@ head(metros_por_hora_t)
 ```
 
 El número de metros por hora por estación incluye tanto los de entrada como los de salida.
+
+
+
 
 ### Número de metros por día por estación
 
@@ -829,6 +835,7 @@ is_line_4 <- rep(NA, length(V(g)))
 for (i in 1:length(V(g))) {
   is_line_4[i] <- "4" %in% V(g)$lines[[i]]
 }
+
 ```
 
 
@@ -872,6 +879,12 @@ V(g)$closeness <- closeness(g)
 
 # suma de grados de entrada y salida
 V(g)$degree <- degree(g)
+
+# pagerank
+V(g)$pagerank <- page_rank(g)$vector
+
+# eigenvector centrality
+V(g)$eigenvector <- eigen_centrality(g)$vector
 ```
 
 
@@ -888,11 +901,280 @@ hist(V(g)$in_degree, main = "Degree Distribution", xlab = "Degree")
 ```
 
 ```{r}
+hist(V(g)$pagerank, main = "PageRank Distribution", xlab = "PageRank")
+```
+
+```{r}
+hist(V(g)$eigenvector, main = "Eigenvector Centrality Distribution", xlab = "Eigenvector Centrality")
 ```
 
 
 ```{r}
+# sort nodes by pagerank
+pagerank_order <- order(V(g)$pagerank, decreasing = TRUE)
+
+# top 10 nodes by pagerank
+top_10_pagerank <- V(g)[pagerank_order[1:10]]
+top_10_pagerank$stop_name
 ```
+
+
+## Extracción de las características de las estaciones
+
+### Metros por franjas horarias
+
+**Voy a sacar el número de metro por franja horaria para cada estación, ya que luego lo utilizaremos para la caracterización de los barrios**
+
+```{r, warning=FALSE}
+metros_por_franja <- stop_times %>%
+  group_by(stop_id, stop_name, time_of_day) %>%
+  summarise(metros = n())
+```
+**Lo pasamos a una visualización matricial de forma que las franjas horarias queden como columnas**
+
+```{r}
+metros_por_franja_t <- metros_por_franja %>%
+  mutate(time_of_day = case_when(
+    time_of_day == "Morning" ~ "metros_in_Morning",
+    time_of_day == "Mid morning" ~ "metros_in_Mid_morning",
+    time_of_day == "Midday" ~ "metros_in_Midday",
+    time_of_day == "Evening" ~ "metros_in_Evening",
+    time_of_day == "Afternoon" ~ "metros_in_Afternoon",
+    time_of_day == "Night" ~ "metros_in_Night",
+    TRUE ~ "Otro"
+  )) %>%
+  pivot_wider(names_from = time_of_day, values_from = metros, values_fill = 0)
+```
+
+### Metros por hora
+
+```{r}
+p <- trips_stops_details %>%
+  group_by(stop_id, hour = hour(arrival_time)) %>%
+  summarise(metros = n())
+
+promedio_metros_hora <- p %>%
+  group_by(stop_id) %>%
+  summarise(metros_hora = mean(metros))
+```
+
+
+### Líneas por estación
+
+**Se usará la variable lines_per_station**
+
+### Número de estaciones a las que se conecta cada una
+
+**Lo obtendremos a partir del grafo mediante el grado de cada nodo. Se van a considerar solo los grados de entrada porque el grafo es bidireccional para todas sus aristas y si se utiliza la función `degree` cuanta los grados de salida y entrada.**
+
+```{r}
+vecinos <- data.frame(stop_id = V(g)$name, neighbours_in = degree(g, mode = "in"),
+                      neighbours_out = degree(g, mode = "out"))
+```
+
+
+
+
+### Betweenness
+
+**Estaciones que actúan como intermediarias en la red de metro, es decir, son más necesarias para poder llegar a otras estaciones. Calcularemos el normalizado, ya que para el bus no se tendrá una red conexa, y así podemos comparar mejor.**
+
+```{r}
+btw_val <- betweenness(g, normalized = TRUE)
+betweenness <- data.frame(stop_id = names(btw_val), betweenness = btw_val)
+```
+
+
+
+### Closeness
+
+**Estaciones que están más cerca de las demás estaciones de la red de metro, permite llegar al resto de estaciones con menor distancia. Calcularemos el normalizado, ya que para el bus no se tendrá una red conexa, y así podemos comparar mejor.**
+
+```{r}
+closness_val <- closeness(g, normalized = TRUE)
+closeness <- data.frame(stop_id = names(closness_val), closeness = closness_val)
+```
+
+### PageRank
+
+Se va a calcular el PageRank de cada estación, que es una medida de la importancia de cada nodo en la red.
+
+```{r}
+pagerank_val <- page_rank(g)$vector
+pagerank <- data.frame(stop_id = names(pagerank_val), pagerank = pagerank_val)
+```
+
+
+
+### Capacidad de transporte de pasageros
+
+**En primer lugar vamos a buscar obtener una tabla que recoja, para cada estación, el número de metros y de tranvías que pasan por franja horaria.**
+
+**Vamos a trabajar con la variable `trips_stops_details` que recoge las paradas que hace cada viaje. Primero añadiremos sobre esta una variable que indique si se trata de metro o tranvía, además de las franjas horarias, ya que esta no las tiene. No se utiliza `stop_times` que sí las tiene porque en ella no se tiene el nombre corto de la ruta.**
+
+```{r}
+metro_tranvia <- trips_stops_details %>%
+  mutate(time_of_day = case_when(
+    hour(arrival_time) >= 6 & hour(arrival_time) < 9 ~ "people_Morning",
+    hour(arrival_time) >= 9 & hour(arrival_time) < 12 ~ "people_Mid_morning",
+    hour(arrival_time) >= 12 & hour(arrival_time) < 15 ~ "people_Midday",
+    hour(arrival_time) >= 15 & hour(arrival_time) < 18 ~ "people_Evening",
+    hour(arrival_time) >= 18 & hour(arrival_time) < 21 ~ "people_Afternoon",
+    hour(arrival_time) >= 21 | hour(arrival_time) < 6 ~ "people_Night",
+    TRUE ~ "Otro"
+  )) %>%
+  mutate(tipo = case_when(
+    route_short_name %in% c("4", "6", "8", "10") ~ "Tranvía",
+    TRUE ~ "Metro"
+  ))
+```
+
+**Una vez se ha conseguido, se creará una dataframe agrupando por para estación y franja que recoja el número de metro y tranvías.**
+
+```{r}
+metro_tranvia_por_franja <- metro_tranvia %>%
+  group_by(stop_id, time_of_day, tipo) %>%
+  summarise(n = n())
+metro_tranvia_por_franja_t <- metro_tranvia_por_franja %>%
+  pivot_wider(names_from = tipo, values_from = n, values_fill = 0)
+```
+
+**Ahora poseemos un dataframe que tiene el número de metros y tranvías por franja horaria para cada estación. Vamos a añadir la capacidad de gente que puede transportar cada uno multiplicando el número de metros por el promedio de capacidad de gente que tienen los metros que transitan por valencia e igual para los tranvías. Este promedio estará ponderado por el número de coches de ese tipo que hay disponibles.**
+
+Promedio de capacidad de los metros y tranvías:
+
+- Metros: 588 personas * 0.67 + 750 personas * 0.33 = 640.26 personas
+
+- Tranvías: 277 personas * 0.49 + 201 personas * 0.51 = 237.35 personas
+
+```{r}
+capacidad_metro <- 588*(42/(42+20)) + 750*(20/(42+20))
+capacidad_tranvia <- 277*(22/(22+24)) + 201*(24/(22+24))
+
+metro_tranvia_por_franja_t <- metro_tranvia_por_franja_t %>%
+  mutate(per_metro = capacidad_metro * Metro,
+         per_tranvia = capacidad_tranvia * Tranvía,
+         capacidad_total = capacidad_metro * Metro + capacidad_tranvia * Tranvía)
+```
+
+
+**Seleccionamos el dataframe final para concatenarlo.**
+
+```{r}
+capacidad_estaciones <- metro_tranvia_por_franja_t %>%
+  select(-Metro, -Tranvía, -per_metro, -per_tranvia) %>%
+  pivot_wider(names_from = time_of_day, values_from = capacidad_total, values_fill = 0)
+
+head(capacidad_estaciones)
+```
+
+
+### Capacidad promedio de transporte por hora
+
+**Se va a calcular la capacidad promedio de transporte por hora para cada estación.**
+
+```{r}
+metro_tranvia_por_hora <- trips_stops_details %>%
+  mutate(tipo = case_when(
+    route_short_name %in% c("4", "6", "8", "10") ~ "Tranvía",
+    TRUE ~ "Metro"
+  )) %>%
+  group_by(stop_id, tipo, hour=hour(arrival_time)) %>%
+  summarise(n = n())
+
+metro_tranvia_por_hora_t <- metro_tranvia_por_hora %>%
+  pivot_wider(names_from = tipo, values_from = n, values_fill = 0)
+
+metro_tranvia_por_hora_t <- metro_tranvia_por_hora_t %>%
+  mutate(per_metro = capacidad_metro * Metro,
+         per_tranvia = capacidad_tranvia * Tranvía,
+         capacidad_total = capacidad_metro * Metro + capacidad_tranvia * Tranvía) %>%
+  select(-Metro, -Tranvía, -per_metro, -per_tranvia)
+
+capacidad_promedio_hora <- metro_tranvia_por_hora_t %>%
+  group_by(stop_id) %>%
+  summarise(capacidad_hora = mean(capacidad_total))
+```
+
+
+
+
+### Creación del dataset
+
+```{r}
+caracteristicas_estaciones <- left_join(vecinos, betweenness, by = "stop_id") %>%
+  left_join(closeness, by = "stop_id") %>%
+  left_join(pagerank, by = "stop_id") %>%
+  left_join(metros_por_franja_t, by = "stop_id") %>%
+  select(-stop_name) %>%
+  left_join(lines_per_station, by = "stop_id") %>%
+  left_join(capacidad_estaciones, by = "stop_id") %>%
+  left_join(capacidad_promedio_hora, by = "stop_id") %>%
+  left_join(promedio_metros_hora, by = "stop_id")
+```
+
+
+
+
+### Adición de las coordenadas de las estaciones
+
+```{r}
+coordenadas <- gtfs$stops %>%
+  select(stop_id, stop_lat, stop_lon)
+
+caracteristicas_estaciones <- left_join(caracteristicas_estaciones, coordenadas, by = "stop_id")
+
+head(caracteristicas_estaciones)
+```
+
+
+
+
+
+
+```{r}
+library(arrow)
+
+write_parquet(caracteristicas_estaciones, "../data/caracteristicas_metro.parquet")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
