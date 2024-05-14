@@ -908,6 +908,18 @@ hist(V(g)$pagerank, main = "PageRank Distribution", xlab = "PageRank")
 hist(V(g)$eigenvector, main = "Eigenvector Centrality Distribution", xlab = "Eigenvector Centrality")
 ```
 
+### Top 10 estaciones por cada métrica
+
+```{r}
+# sort nodes by in_degree
+in_degree_order <- order(V(g)$in_degree, decreasing = TRUE)
+
+# top 10 nodes by in_degree
+top_10_in_degree <- V(g)[in_degree_order[1:10]]
+top_10_in_degree$stop_name
+```
+
+
 
 ```{r}
 # sort nodes by pagerank
@@ -917,6 +929,16 @@ pagerank_order <- order(V(g)$pagerank, decreasing = TRUE)
 top_10_pagerank <- V(g)[pagerank_order[1:10]]
 top_10_pagerank$stop_name
 ```
+
+```{r}
+# sort nodes by eigenvector
+eigenvector_order <- order(V(g)$eigenvector, decreasing = TRUE)
+
+# top 10 nodes by eigenvector
+top_10_eigenvector <- V(g)[eigenvector_order[1:10]]
+top_10_eigenvector$stop_name
+```
+
 
 
 ## Extracción de las características de las estaciones
@@ -1002,6 +1024,15 @@ Se va a calcular el PageRank de cada estación, que es una medida de la importan
 ```{r}
 pagerank_val <- page_rank(g)$vector
 pagerank <- data.frame(stop_id = names(pagerank_val), pagerank = pagerank_val)
+```
+
+### Eigenvector centrality
+
+Se va a calcular la centralidad de eigenvector de cada estación, que es una medida de la importancia de cada nodo en la red.
+
+```{r}
+eigenvector_val <- eigen_centrality(g)$vector
+eigenvector <- data.frame(stop_id = names(eigenvector_val), eigenvector = eigenvector_val)
 ```
 
 
@@ -1105,6 +1136,7 @@ capacidad_promedio_hora <- metro_tranvia_por_hora_t %>%
 caracteristicas_estaciones <- left_join(vecinos, betweenness, by = "stop_id") %>%
   left_join(closeness, by = "stop_id") %>%
   left_join(pagerank, by = "stop_id") %>%
+  left_join(eigenvector, by = "stop_id") %>%
   left_join(metros_por_franja_t, by = "stop_id") %>%
   select(-stop_name) %>%
   left_join(lines_per_station, by = "stop_id") %>%
