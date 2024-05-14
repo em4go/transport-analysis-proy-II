@@ -445,10 +445,19 @@ metros_por_dia %>%
 
 ### Número de líneas que pasan por cada estación, con una columna que contiene una lista con las líneas y otra con el número de líneas
 
+```{r}
+trips_stops_details %>%
+  group_by(stop_name, route_short_name) %>%
+  summarise(n = n()) %>% 
+  filter(n > 15)
+```
+
 
 ```{r}
 lines_per_station <- trips_stops_details %>%
-  group_by(stop_id, stop_name) %>%
+  group_by(stop_id, stop_name, route_short_name) %>%
+  summarise(n = n()) %>% 
+  filter(n > 15) %>%
   summarise(lines = list(unique(route_short_name)), n_lines = length(unique(route_short_name)))
 
 lines_per_station
@@ -495,15 +504,7 @@ Primero se creará un dataframe con las estaciones y las líneas de metro que pa
 
 ### Preparación de los datos
 
-```{r}
-lines_per_station <- trips_stops_details %>%
-  group_by(stop_id, stop_name) %>%
-  summarise(lines = list(unique(route_short_name)), n_lines = length(unique(route_short_name)))
-
-lines_per_station
-```
-
-Ahora se pueden ver las líneas que pasan por cada estación.
+Tenemos una variable lines_per_station creada previamente, con la que se pueden ver las líneas que pasan por cada estación.
 
 ```{r}
 head(lines_per_station$lines)
@@ -1172,7 +1173,9 @@ write_parquet(caracteristicas_estaciones, "../data/caracteristicas_metro.parquet
 
 
 
-
+```{r}
+save(g, file = "../data/networks_data/metro_graph.RData")
+```
 
 
 
