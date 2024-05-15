@@ -805,7 +805,6 @@ distinct_nodes
 
 ```{r}
 V(g)$lines <- distinct_nodes$lines
-
 ```
 
 Ahora solo queda poner en qué líneas está cada par de nodos (ruta entre uno y otro). Para esto, se usará la intersección entre las líneas que están en un nodo y las del siguiente
@@ -1100,6 +1099,8 @@ head(caracteristicas_estaciones)
 library(arrow)
 
 write_parquet(caracteristicas_estaciones, "../data/caracteristicas_metro.parquet")
+write_graph(g, file = "../data/networks_data/metro_valencia.graphml", format = "graphml")
+save(g, file = "graph_metro_valencia.RData")
 ```
 
 

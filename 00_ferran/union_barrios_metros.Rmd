@@ -1,8 +1,10 @@
 ---
 title: "Relación de ambas caracterizaciones"
 author: "Ferran Aragó"
-date: "r sys.Date()"
-output: pdf_document
+date: "`r sys.Date()`"
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE, echo=FALSE}
@@ -11,6 +13,9 @@ library(sf)
 library(geojsonsf)
 library(dplyr)
 library(arrow)
+library(kableExtra)
+library(igraph)
+library(leaflet)
 ```
 
 # Función para establecer el barrio
@@ -37,6 +42,7 @@ Los datos que vamos a utilizar en un principio son, el dataframe de caracterizac
 ```{r data_charge}
 carac_metro <- read_parquet("../data/caracteristicas_metro.parquet")
 poligonos_barrios <- read_parquet("../data/info_general_barrio.parquet")
+poligonos_barrios[is.na(poligonos_barrios)] <- 0
 ```
 
 
@@ -63,18 +69,296 @@ Vamos a seleccionar las columnas respectivas a los índices calculados sobre los
 
 ```{r}
 barrios <- read.csv("../00_marc/dataTratada/barrios_indices.csv")
+barrios[is.na(barrios)] <- 0
 barrios_total <- read.csv("../00_marc/dataTratada/barrios_final.csv")
 carac_metro_barrio <- data.frame()
 
 carac_metro_barrio <- barrios %>% select(-paradas_metro, -paradas_emt, -estaciones_valenbisi) %>%
   merge(carac_metro, by = "barrio", all.y = TRUE)
-carac_metro_barrio <- poligonos_barrios %>% select(-paradas_metro, -geo_shape, -precio_alquiler, 
-                                                   -geometry, -distrito) %>%
+b <- poligonos_barrios %>% select(-paradas_metro, -geo_shape, -precio_alquiler,
+                                                   -geometry, -distrito)
+carac_metro_barrio <- b %>%
   merge(carac_metro_barrio, by = "barrio", all.y = TRUE)
 carac_metro_barrio <- barrios_total %>% select(barrio, RENTA_BRUTA, SALARIO, Precio_alquiler.m2, 
                                                Precio_venta.m2) %>%
   merge(carac_metro_barrio, by = "barrio", all.y = TRUE)
 ```
+
+
+Una vez conseguido el dataset con toda la información junta, vamos a plantearnos una serie de preguntas para responderlas mediante los datos que disponemos.
+
+```{r}
+carac_metro_barrio <- carac_metro_barrio[!is.na(carac_metro_barrio$barrio) | carac_metro_barrio$stop_id %in% c("55","56"),]
+```
+
+
+# Relaciones entre los barrios y las estaciones de metro
+
+## Correlación entre las variables
+
+En este apartado vamos a estudiar las correlaciones lineales entre las distintas variables de nuestro nuevo dataset, de forma que se puedan ver que entre las características de un barrio influyen más en las características de las estaciones de este, ya sea de forma negativa o positiva.
+
+```{r}
+carac_metro_barrio_num <- carac_metro_barrio %>% 
+  select(-barrio, -stop_id, -stop_lat, -stop_lon, -geometry, -lines, -stop_name, -Distrito)
+correlacion_metros <- cor(carac_metro_barrio_num, use = "complete.obs")
+```
+
+
+
+## Barrios más cercanos
+
+En este apartado vamos a estudiar cuales son los barrios que son más cercanos al resto respecto a la red de metro, es decir, cuales son los barrios que necesitan un menor número de paradas para llegar a cualquier otra parada. Esto resulta interesante, ya que nos puede mostrar cuales son los barrios que te permiten llegar a todos los demás, con una estación de metro, en un menor número de paradas. Esto es posible comprobarlo mediante la medida de cercanía (closeness) de la red de metro.
+
+Para ello, vamos a agrupar nuestro dataset conjunto por barrio y a realizar una media del closeness para todas las estaciones de cada barrio. De esta forma, obtendremos un valor que nos indicará la cercanía de cada barrio respecto al resto.
+
+
+```{r}
+carac_metro_barrio_closeness <- carac_metro_barrio %>% group_by(barrio) %>%
+  summarise(closeness = mean(closeness)) %>%
+  arrange(desc(closeness))
+head(carac_metro_barrio_closeness)
+```
+
+```{r}
+carac_metro_barrio_closeness <- carac_metro_barrio %>% group_by(barrio) %>%
+  summarise(closeness = max(closeness)) %>%
+  arrange(desc(closeness))
+head(carac_metro_barrio_closeness)
+```
+
+Como podemos ver, es el barrio de Arrancapins el que se sitúa con un mayor closeness, lo que nos indica que es este el barrio que se encuentra más cerca del resto de barrios con metro y, por tanto, el barrio más céntrico de la red de metro. Esto es conveniente para aquella gente que necesite desplazarse cada día a un lugar distinto, ya que, permaneciendo en este, el coste de ir a cualquier otro será menor que en otros barrios.
+
+
+
+## Barrios más importantes para la red de metro
+
+Una vez visto el barrio más céntrico, vamos a estudiar cuales son los barrios que comunican un mayor número de barrios con paradas de metro, es decir, cuales son los barrios imprescindibles para poder comunicar otros dos barrios cuales quiera, ya que para llegar de uno a otro es preciso pasar por él.
+
+Para esto vamos a seguir una dinámica igual a la anterior, pero en este caso vamos a utilizar la medida de intermediación (betweenneess) en lugar de la de cercanía.
+
+```{r}
+carac_metro_barrio_betweenness <- carac_metro_barrio %>% group_by(barrio) %>%
+  summarise(betweenness = mean(betweenness)) %>%
+  arrange(desc(betweenness))
+head(carac_metro_barrio_betweenness)
+```
+
+```{r}
+carac_metro_barrio_betweenness <- carac_metro_barrio %>% group_by(barrio) %>%
+  summarise(betweenness = max(betweenness)) %>%
+  arrange(desc(betweenness))
+head(carac_metro_barrio_betweenness)
+```
+
+Como se puede observar, sigue siendo el barrio de Arrancapins el que tiene una mejor intermediación, por lo que es el que toma una mayor importancia para la red de metro, ya que muchos de los caminos más rápidos para llegar de un barrio a otro con parada de metro pasan por él.
+
+Además, teniendo en cuenta ambos resultados, es posible concluir que la red de metro de Valencia está distribuida de forma radial, por lo que todas las vías de las distintas líneas tienden a pasar por un mismo centro de la red, en este caso por el barrio de Arrancapins, en el que se encuentra la estación de metro de Àngel Guimerà.
+
+
+
+
+
+
+## Subred de metro de Valencia
+
+Tras los resultados obtenidos, vamos a ahora a centrarnos en las mismas medidas pero extrayéndolas de la red de metro que realmente se encuentra en Valencia, ya que las medidas anteriores son sobre la red completa, pero hay muchas estaciones que no se encuentran dentro de la ciudad de Valencia. Además, también se van a tener en cuenta para esta nueva red las paradas de metro de Empalme y Canterería, ya que sin estas, hay dos paradas de Benimámet que no estarían conexas al resto de la red y, al calcular las medidas, desvirtuarían la realidad.
+
+Una vez consigamos las nuevas medidas, se compararán con las anteriores.
+
+### Obtención del subgrafo
+
+El primer paso es obtener el subgrafo sobre el de la red completa.
+
+```{r}
+#g <- read_graph("../data/networks_data/metro_valencia.graphml", format = "graphml")
+load("graph_metro_valencia.RData")
+
+g_valencia <- induced_subgraph(g, V(g)$name %in% carac_metro_barrio$stop_id | V(g)$name == "55" | V(g)$name == "56")
+
+plot(g_valencia)
+```
+
+### Cálculo de las medidas
+
+Una vez conseguido el nuevo subgrafo, pasamos a calcular las medidas de cercanía e intermediación.
+
+
+```{r}
+closeness_valencia <- closeness(g_valencia, normalized = TRUE)
+betweenness_valencia <- betweenness(g_valencia, normalized = TRUE)
+```
+
+
+
+### Comparación de las medidas
+
+Una vez calculadas las medidas, vamos a compararlas con las obtenidas anteriormente.
+
+```{r}
+carac_metro_barrio_closeness_valencia <- data.frame(stop_id = V(g_valencia)$name,
+                                                    closeness = closeness_valencia) %>%
+  merge(carac_metro_barrio[,c("stop_id", "barrio")], by = "stop_id") %>%
+  group_by(barrio) %>%
+  summarise(closeness = max(closeness)) %>%
+  arrange(desc(closeness))
+
+head(carac_metro_barrio_closeness_valencia)
+```
+
+
+```{r}
+carac_metro_barrio_betweenness_valencia <- data.frame(stop_id = V(g_valencia)$name,
+                                                      betweenness = betweenness_valencia) %>%
+  merge(carac_metro_barrio[,c("stop_id", "barrio")], by = "stop_id") %>%
+  group_by(barrio) %>%
+  summarise(betweenness = max(betweenness)) %>%
+  arrange(desc(betweenness))
+head(carac_metro_barrio_betweenness_valencia)
+```
+
+Al obtener las nuevas medidas, en ambas vuelve a coincidir el barrio con mayor cercanía e intermediación, salvo que en este caso se trata del barrio de Mestalla. Con esto, al igual que concluíamos anteriormente, se puede llegar a decir que la red de metro se solo la ciudad de Valencia también es radial, teniendo como centro el barrio de Mestalla.
+
+Por lo tanto, para la red completa del metro, será el barrio de Arrancapins el centro de esta, mientras que si tan solo tenemos en cuenta las paradas que se sitúan dentro de la ciudad de Valencia, será Mestalla quien tome este papel. Todo esto teniendo en cuenta que en ambas redes se toma como posible la realización de transbordos, es decir, que para llegar a las distintas estaciones se pueden tomar distintas líneas de metro.
+
+
+## Barrios con más líneas de metro
+
+Pasamos ahora a estudiar cuales son los barrios que tienen un mayor número de líneas de metro, es decir, cuantas lineas distintas hacen su parada en alguna estación de ese metro.
+
+Esta parte también resulta interesante, ya que, aparte de la intermediación, esto también nos puede ayudar a ver la importancia de estos barrios, ya aquellos barrios con un mayor número de líneas que pasen por ellos tendrán una mayor posibilidad de comunicación con el resto de barrios, ya que cada línea de metro tiene una ruta distinta.
+
+
+```{r}
+carac_metro_barrio_lines <- carac_metro_barrio %>% group_by(barrio) %>%
+  summarise(lines = (list(unlist(lines))))
+carac_metro_barrio_lines$n_lines <- sapply(carac_metro_barrio_lines$lines, function(x) length(unique(x)))
+carac_metro_barrio_lines <- carac_metro_barrio_lines %>% select(barrio, n_lines) %>%
+  arrange(desc(n_lines))
+head(carac_metro_barrio_lines)
+```
+
+
+Viendo los resultados, se trata del barrio de La Roqueta.
+
+
+
+
+
+
+# Cosas a parte que venía bien hacerlo aquí
+
+```{r}
+establecer_barrio<- function(punto, info_poligonos) {
+  # Recibe un objeto de tipo punto y un dataframe con la información de los polígonos y el barrio
+  b <- unlist(st_within(punto, info_poligonos$geometry))
+  if (length(b) == 0) {
+    return(NA)
+  } else {
+    return(info_poligonos$barrio[b])
+  }
+}
+
+carac_metro <- read_parquet("../data/caracteristicas_metro.parquet")
+poligonos_barrios <- read_parquet("../data/info_general_barrio.parquet")
+poligonos_barrios[is.na(poligonos_barrios)] <- 0
+# En la siguiente función, el parámetro crs indica el sistema de referencia de coordenadas
+estaciones <- st_as_sf(carac_metro, coords = c("stop_lon", "stop_lat"), crs = 4326)
+poligonos_barrios <- cbind(poligonos_barrios, geojson_sf(poligonos_barrios$geo_shape))
+
+
+estaciones$barrio <- sapply(1:nrow(estaciones), function(i) {
+  establecer_barrio(estaciones[i,], poligonos_barrios)
+})
+
+carac_metro <- merge(carac_metro, estaciones[,c("stop_id", "barrio")], by = "stop_id", all.x = TRUE)
+
+barrios <- read.csv("../00_marc/dataTratada/barrios_indices.csv")
+barrios[is.na(barrios)] <- 0
+barrios_total <- read.csv("../00_marc/dataTratada/barrios_final.csv")
+carac_metro_barrio <- data.frame()
+
+carac_metro_barrio <- barrios %>% select(-paradas_metro, -paradas_emt, -estaciones_valenbisi) %>%
+  merge(carac_metro, by = "barrio", all.y = TRUE)
+b <- poligonos_barrios %>% select(-paradas_metro, -geo_shape, -precio_alquiler,
+                                                   -geometry, -distrito)
+carac_metro_barrio <- b %>%
+  merge(carac_metro_barrio, by = "barrio", all.y = TRUE)
+carac_metro_barrio <- barrios_total %>% select(barrio, RENTA_BRUTA, SALARIO, Precio_alquiler.m2, 
+                                               Precio_venta.m2) %>%
+  merge(carac_metro_barrio, by = "barrio", all.y = TRUE)
+
+carac_metro_barrio <- carac_metro_barrio[!is.na(carac_metro_barrio$barrio) |
+                                           carac_metro_barrio$stop_id %in% c("55","56"),]
+
+load("graph_metro_valencia.RData")
+
+g_valencia <- induced_subgraph(g, V(g)$name %in% carac_metro_barrio$stop_id)
+
+
+plot_graph <- function(dataset,color, tamanyo, g_fun){
+  
+  library(leaflet)
+    
+  colors <- colorNumeric(palette = "YlGnBu", domain = color)
+  
+  b <- st_as_sf(dataset, crs = 4326)
+  
+    plot_isochron <- function(subgrafo) {
+    
+    edge_list <- as_edgelist(subgrafo)
+    
+    m = leaflet() %>% addTiles() # urlTemplate = ""
+    
+      for (i in 1:nrow(edge_list)) {
+        edge <- edge_list[i,]
+        head_edge <- V(subgrafo)[edge[1]]
+        tail_edge <- V(subgrafo)[edge[2]]
+        
+        m <- m %>%
+          addPolylines(lng = c(head_edge$lon, tail_edge$lon), lat = c(head_edge$lat, tail_edge$lat),
+                       color = "#35434c")
+      }
+      
+      # add nodes to map
+      #m <- m %>% addCircleMarkers(lng = V(subgrafo)$lon, lat = V(subgrafo)$lat, radius = 5, color = "red")
+      #m <- m %>% addCircleMarkers(lng = start_node$x, lat = start_node$y, radius = 5, color = "yellow")
+      return(m)
+    }
+  
+  
+  mapa <- plot_isochron(g_fun)
+  mapa <- mapa %>%
+    addCircleMarkers(data = b, color = ~colors(color), radius = ~(tamanyo*70)^2 , fillOpacity = 1,
+                     popup = ~paste(stop_name))
+  
+  
+  mapa
+}
+
+
+
+plot_graph(carac_metro, color = carac_metro$pagerank, tamanyo = carac_metro$closeness, g_fun = g)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
