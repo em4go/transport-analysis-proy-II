@@ -445,10 +445,19 @@ metros_por_dia %>%
 
 ### Número de líneas que pasan por cada estación, con una columna que contiene una lista con las líneas y otra con el número de líneas
 
+```{r}
+trips_stops_details %>%
+  group_by(stop_name, route_short_name) %>%
+  summarise(n = n()) %>% 
+  filter(n > 15)
+```
+
 
 ```{r}
 lines_per_station <- trips_stops_details %>%
-  group_by(stop_id, stop_name) %>%
+  group_by(stop_id, stop_name, route_short_name) %>%
+  summarise(n = n()) %>% 
+  filter(n > 15) %>%
   summarise(lines = list(unique(route_short_name)), n_lines = length(unique(route_short_name)))
 
 lines_per_station
@@ -495,15 +504,7 @@ Primero se creará un dataframe con las estaciones y las líneas de metro que pa
 
 ### Preparación de los datos
 
-```{r}
-lines_per_station <- trips_stops_details %>%
-  group_by(stop_id, stop_name) %>%
-  summarise(lines = list(unique(route_short_name)), n_lines = length(unique(route_short_name)))
-
-lines_per_station
-```
-
-Ahora se pueden ver las líneas que pasan por cada estación.
+Tenemos una variable lines_per_station creada previamente, con la que se pueden ver las líneas que pasan por cada estación.
 
 ```{r}
 head(lines_per_station$lines)
@@ -908,6 +909,18 @@ hist(V(g)$pagerank, main = "PageRank Distribution", xlab = "PageRank")
 hist(V(g)$eigenvector, main = "Eigenvector Centrality Distribution", xlab = "Eigenvector Centrality")
 ```
 
+### Top 10 estaciones por cada métrica
+
+```{r}
+# sort nodes by in_degree
+in_degree_order <- order(V(g)$in_degree, decreasing = TRUE)
+
+# top 10 nodes by in_degree
+top_10_in_degree <- V(g)[in_degree_order[1:10]]
+top_10_in_degree$stop_name
+```
+
+
 
 ```{r}
 # sort nodes by pagerank
@@ -917,6 +930,16 @@ pagerank_order <- order(V(g)$pagerank, decreasing = TRUE)
 top_10_pagerank <- V(g)[pagerank_order[1:10]]
 top_10_pagerank$stop_name
 ```
+
+```{r}
+# sort nodes by eigenvector
+eigenvector_order <- order(V(g)$eigenvector, decreasing = TRUE)
+
+# top 10 nodes by eigenvector
+top_10_eigenvector <- V(g)[eigenvector_order[1:10]]
+top_10_eigenvector$stop_name
+```
+
 
 
 ## Extracción de las características de las estaciones
@@ -1002,6 +1025,15 @@ Se va a calcular el PageRank de cada estación, que es una medida de la importan
 ```{r}
 pagerank_val <- page_rank(g)$vector
 pagerank <- data.frame(stop_id = names(pagerank_val), pagerank = pagerank_val)
+```
+
+### Eigenvector centrality
+
+Se va a calcular la centralidad de eigenvector de cada estación, que es una medida de la importancia de cada nodo en la red.
+
+```{r}
+eigenvector_val <- eigen_centrality(g)$vector
+eigenvector <- data.frame(stop_id = names(eigenvector_val), eigenvector = eigenvector_val)
 ```
 
 
@@ -1105,6 +1137,7 @@ capacidad_promedio_hora <- metro_tranvia_por_hora_t %>%
 caracteristicas_estaciones <- left_join(vecinos, betweenness, by = "stop_id") %>%
   left_join(closeness, by = "stop_id") %>%
   left_join(pagerank, by = "stop_id") %>%
+  left_join(eigenvector, by = "stop_id") %>%
   left_join(metros_por_franja_t, by = "stop_id") %>%
   select(-stop_name) %>%
   left_join(lines_per_station, by = "stop_id") %>%
@@ -1140,7 +1173,9 @@ write_parquet(caracteristicas_estaciones, "../data/caracteristicas_metro.parquet
 
 
 
-
+```{r}
+save(g, file = "../data/networks_data/metro_graph.RData")
+```
 
 
 
