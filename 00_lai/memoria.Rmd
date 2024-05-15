@@ -1,6 +1,6 @@
 ---
 title: "Memoria"
-author: "Laiqian Ji"
+author: "Laiqian Ji, Ernesto Martínez, Ferran Aragó, Alejandro Hervás, Marc Hurtado"
 date: "`r Sys.Date()`"
 output: 
   pdf_document:
@@ -43,22 +43,68 @@ Con ello, se espera que este proyecto contribuya a la comprensión de la dinámi
 
 ## Estado del arte
 
-## Motivación
-
 ## Objetivos de análisis
-El objetivo principal de este proyecto es alcanzar una comprensión más profunda de los barrios urbanos y su conexión con el sistema de transporte público. Para ello, se han desglosado cinco objetivos específicos que se desarrollarán a lo largo del proyecto y que se detallan a continuación:
+El objetivo principal de este proyecto es analizar integralmente la interacción entre el transporte público, la infraestructura urbana y el desarrollo de los barrios en Valencia. Para ello, analizaremos diferentes conjuntos de datos relativos a las dos entidades principales de estudio en el proyecto: el transporte público y los barrios de Valencia, aunque se planea extender dicho análisis a otras ciudades de España como Madrid o Barcelona. De estas dos entidades de datos:
 
-1. Caracterizar barrios
-2. Caracterizar transporte público
-3. Analizar la relación entre barrios y transporte público
-4. Agrupación de barrios / Agrupación de estaciones (clustering)
-5. Visualización 
+- Del transporte público, analizar la frecuencia de paso, la capacidad de carga, la cobertura y, posiblemente, algunas métricas relativas a teoría de grafos y redes. Posteriormente, se contrastará por si existe relación entre los diferentes barrios y los servicios de transporte público que se ofrecen y viceversa.
+
+- Respecto a los barrios, se han obtenido múltiples métricas referentes a la infraestructura urbana como el número de establecimientos de ocio, hostelería, actividad física y cultura, la suma de m2 de zonas verdes, el número de estaciones de metro y bus que hay en dicho barrio,… Así como también hemos recopilado información de carácter sociodemográfico como el número de habitantes, precio medio del m2 de alquiler, etc.
+
+Posteriormente, cruzaremos sendos análisis para tratar de obtener diferentes conclusiones.
+
+Para facilitar todo el proceso, se han desglosado cinco objetivos específicos que se desarrollarán a lo largo del proyecto y que se detallan a continuación:
+
+1. Caracterizar barrios. Con las más de 10 variables que hemos obtenido y combinado, queremos realizar análisis para describir los diferentes barrios. Para ello, podríamos utilizar algunas técnicas de ML.
+2. Caracterizar transporte público. De forma similar, con los GTFS y otros datos, queremos aplicar algunas técnicas para estudiar algunas características del transporte público, centrándonos en el metro y el autobús.
+3. Analizar la relación entre barrios y transporte público. En base a ambas caracterizaciones, se plantea estudiar la existencia de alguna relación entre los barrios y el transporte público.
+4. Agrupación de barrios / Agrupación de estaciones (clustering). Podemos aplicar algoritmos de clustering o agrupación como K-means para obtener los barrios con características similares
+5. Visualización. Resulta de interés realizar diferentes gráficas de los datos geográficos para poder plasmar toda la información de una forma más visual. Lógicamente, también se obtendrán gráficas para las partes más cuantitativas, que no geoespaciales.
 
 # Metodología
+A continuación, se exponen las diferentes fases de la metodología empleada en el proyecto, que abarca desde la recolección de datos, el análisis exploratorio, la construcción de modelos y la visualización de los resultados.
 
-## ETL
+## Extracción de datos
+Respecto a la recolección de datos, se han abordado diferentes fuentes de información para obtener una visión completa y detallada de los barrios y el sistema de transporte público. Para ello, se han utilizado diferentes técnicas de recolección y extracción de datos, entre las que destacan:
+
+a. Datos públicos. Hemos obtenido algunos ficheros de fuentes de datos abiertos sobre diferentes aspectos urbanísticos y de infraestructura de las ciudades, principalmente de la página web de datos abiertos de Valencia. Por ejemplo, de zonas verdes, parkings, paradas de transporte público.
+
+b. GTFS. Hemos cargado datos GTFS de los itinerarios y paradas de metro. Inicialmente, recibimos un .zip con diversos archivos en formato .txt y hemos tenido que realizar diferentes pasos para combinar los datos y obtener datos con los que poder trabajar, con ayuda de la librería de R tidytransit. 
+
+c. API. En R, hemos utilizado la librería “osmdata” que internamente realiza una llamada a una API y carga datos sobre lugares de interés de una categoría que le podemos especificar. En este caso, lo hemos utilizado para obtener el nº de establecimientos de hostelería, deporte, tiendas y lugares históricos (monumentos, edificios,
+etc.)
+
+### Fuentes de datos abiertos
+Como se ha mencionado antes, se ha accedido a la página web de datos abiertos de Valencia, comúnmente denominada *Open Data Soft*, donde se han descargado diferentes conjuntos de datos en formato csv:
+
+- Zonas verdes
+
+- ... (con el enlace en la bibliografía)
+
+Para cada uno de los ficheros se ha realizado un pequeño tratamiento para seleccionar, de todas las variables contenidas en ellos, aquellas que consideramos más relevantes para nuestro estudio. Posteriormente, se han organizado los datos por los diferentes barrios de Valencia, de forma que la matriz de datos final contiene variables en las columnas y barrios como filas (o individuos). Para ello, se ha recurrido a algunas funciones diseñadas en R que:
+
+- En base a un fichero con las coordenadas de los barrios, se calcula un polígono que delimita cada barrio. Este polígono es irregular. (indicar el fichero)
+
+- Se ha desarrollado una función para asignar a cada punto de interés (por ejemplo, una zona verde) el barrio al que pertenece en base a su ubicación, pues la mayoría de ficheros presentaban dicha variable. De esta forma, se obtiene un fichero con la información de los puntos de interés y el barrio al que pertenecen. Para más detalles, véase el fichero "caracterizacion_barrios.Rmd", que también contiene la obtención de algunas variables específicas como la superficie de los barrios.
+
+Intrínsecamente, al agrupar las observaciones por barrio, se ha recurrido a funciones de agrupación, que por lo general ha sido una suma. Por ejemplo, para obtener el número de plazas de parking por barrio, simplemente se han sumado para cada barrio. 
+
+### General Transit Feed Specification (GTFS)
+*GTFS* es un formato de datos estandarizado utilizado para almacenar información sobre el transporte público, como horarios, rutas, paradas, etc. Estos datos son públicos y accesibles de forma gratuita, y se pueden utilizar para realizar análisis y visualizaciones de la red de transporte público. En este caso, hemos trabajado con los datos de metro y bus de Valencia, disponibles en la página web de *transitfeeds*. De aquí, obtenemos diferentes ficheros sobre los que se han tenido que realizar diferentes operaciones y cálculos.
+
+### API's
+En concreto, hemos utilizado la API de Open Street Maps para obtener información sobre los puntos de interés de Valencia. Tras haber seleccionado unas categorías de interés, como hostelería, deporte, tiendas y lugares históricos, se utiliza la librería *osmdata* de R y *osmnx* en Python, que se diferencia por devolver grafos en lugar de datos tabulares, obteniendo así información geográfica de diferentes lugares. 
+Similar a los ficheros de datos públicos se ha tenido que recurrir a cálculos para las agrupaciones por barrio, como puede ser una suma o una media. Por ejemplo, en el caso de los metros de carril bici, que estaban en formato grafos, se han tenido que sumar los metros de carril bici encasillados en un barrio, dividiendo en dos la distancia si la arista estaba en dos barrios simultáneamente.
 
 ## Análisis exploratorio
+El objetivo del análisis exploratorio es establecer una primera toma de contacto con los datos, permitiendo a su vez identificar posibles problemas y errores en los mismos, como pueden ser datos erróneos, datos faltantes, etc.
+
+Para ello, tras haber obtenido los dos conjuntos de datos principales, se han realizado dos análisis independientes para contemplar los puntos anteriormente mencionados. 
+
+De esta manera, se han identificado varias variables con valores faltantes en lo relativo a los datos de barrios, los cuales no simbolizan un faltante, un nulo, sino cero. Es decir, que no hay información sobre esa variable en ese barrio. Este puede ser el caso de la variable "número de plazas de parking" cuando un barrio no tiene plazas de parking. En estos casos, se ha decidido rellenar con cero, ya que no se puede asumir que haya un valor medio o que se pueda imputar de otra forma.
+Asimismo, se detectaron algunos barrios que contenían valores faltantes en prácticamente todas las variables, lo que ha llevado a la eliminación de dichos barrios del análisis. Una posible explicación es que dichos barrios son zonas periféricas sobre las que no se han publicado datos. Algún ejemplo de estos barrios son "Poblats del Nord" y "Poblats del Sud". 
+De forma similar, se identificó una variable (nº de plazas de parking por barrio) que contenía datos en muy pocos barrios. Se decidió eliminar dicha variable del análisis, ya que no aporta información relevante al no tener datos en la mayoría de barrios.
+
+En lo relativo a datos del transporte público, 
 
 ## Modelos
 
@@ -69,3 +115,6 @@ El objetivo principal de este proyecto es alcanzar una comprensión más profund
 # Conclusiones
 
 # Bibliografía
+
+# Anexo
+
