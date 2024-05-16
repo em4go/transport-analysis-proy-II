@@ -19,7 +19,7 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                 navbarPage(
                  #theme = "cerulean",  # <--- To use a theme, uncomment this
                   "Proyecto2",
-                  tabPanel("Transport",
+                  tabPanel("Transporte",
                            
                            mainPanel(
                              h1("MAPA"),
@@ -54,9 +54,33 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                              fluidRow(
                                div(p("Recuerda que una persona normal, tiende a recorrer 100 metros en 1 o 2 minutos"), class = "text-center")
                              )
-                           ) # sidebarPanel
+                           )# sidebarPanel
                            
                   ),
+                  tabPanel("Metro",
+                           mainPanel(
+                             h1("GRAFO"),
+                             
+                             leafletOutput("grafoMETRO", height = 500),
+          
+                                      ), # mainPanel
+                           
+                           sidebarPanel(
+                             tags$h3(HTML("<span style='color:black;'>SELECCIONAR LAS MEDIDAS</span>")),
+                             
+                             selectInput("color", "Indique que medida usará para el color",
+                                         choices = c("PageRank", "Intermediación", "Cercanía", "VectorPropio")
+                                         ),
+                             
+                             selectInput("tamanyo", "Indique que medida usará para el tamaño", 
+                                         choices = c("PageRank", "Intermediación", "Cercanía", "VectorPropio")
+                                         )
+                             
+                            )# sidebarPanel
+                      
+                           
+                            ),
+                  
                   tabPanel("Ratio",
                            fluidRow(
                              column(width = 6,
@@ -150,22 +174,6 @@ server1 <- function(input, output){
       
     }
     
-    #---METRO
-    #sitio <- paste(input$lugar, input$metros)
-    #sitio_sin_espacios <- gsub(" ", "", sitio)  
-    #ruta <- paste0("./mapas/", sitio_sin_espacios, ".rds")
-    #mapa <- readRDS(ruta)
-    
-    #output$mapa <- renderLeaflet(mapa)
-    
-    #---BUS
-    #sitiobus <- paste(input$lugarbus, input$metrosbus)
-    #sitio_sin_espaciosbus <- gsub(" ", "", sitiobus)  
-    #rutabus <- paste0("./mapas/", sitio_sin_espaciosbus, "BUS.rds")
-    #mapabus <- readRDS(rutabus)
-    
-    #output$mapaBUS <- renderLeaflet(mapabus)
-    
     #--------------------------------
     #---RATIO
     mapaMetro <- readRDS("./mapas/ratio_metro.rds")
@@ -185,6 +193,36 @@ server1 <- function(input, output){
     #---DISTRITOS
     mapadist <- readRDS("./mapas/distrito_barrios.rds")
     output$mapaDistritos <- renderLeaflet(mapadist)
+    
+    #---METRO
+    # c("PageRank", "Intermediación", "Cercanía", "VectorPropio")
+    # pagerank, betweenness, closeness, eigenvector
+
+    if (input$color == "PageRank"){
+      color <- "pagerank"
+    } else if (input$color == "Intermediación"){
+      color <- "betweenness"
+    } else if (input$color == "Cercanía"){
+      color <- "closeness"
+    } else if (input$color == "VectorPropio"){
+      color <- "eigenvector"
+    }
+    
+    if (input$tamanyo == "PageRank"){
+      tamanyo <- "pagerank"
+    } else if (input$tamanyo == "Intermediación"){
+      tamanyo <- "betweenness"
+    } else if (input$tamanyo == "Cercanía"){
+      tamanyo <- "closeness"
+    } else if (input$tamanyo == "VectorPropio"){
+      tamanyo <- "eigenvector"
+    }
+    ruta0 <- "./mapas/grafo/"
+    ruta1 <- paste0(ruta0, color, tamanyo, ".rds") 
+    
+    grafMETRO <- readRDS(ruta1)
+    output$grafoMETRO <- renderLeaflet(grafMETRO)
+    
     
   })
   

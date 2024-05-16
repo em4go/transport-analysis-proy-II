@@ -8,6 +8,7 @@ library(lubridate)
 library(igraph)
 library(osmdata)
 library(arrow)
+library(geojsonsf)
 
 #Usamos las funciones auxiliares
 
@@ -372,3 +373,201 @@ r = "./mapas/EstacióndelNorteValencia500TODOS.rds"
 
 m <- readRDS(r)
 m
+
+
+#--------------------------------------------------------------
+#--------------------------------------------------------------
+#--------------------------------------------------------------
+#--------------------------------------------------------------
+establecer_barrio<- function(punto, info_poligonos) {
+  # Recibe un objeto de tipo punto y un dataframe con la información de los polígonos y el barrio
+  b <- unlist(st_within(punto, info_poligonos$geometry))
+  if (length(b) == 0) {
+    return(NA)
+  } else {
+    return(info_poligonos$barrio[b])
+  }
+}
+
+carac_metro <- read_parquet("../data/caracteristicas_metro.parquet")
+poligonos_barrios <- read_parquet("../data/info_general_barrio.parquet")
+poligonos_barrios[is.na(poligonos_barrios)] <- 0
+# En la siguiente función, el parámetro crs indica el sistema de referencia de coordenadas
+estaciones <- st_as_sf(carac_metro, coords = c("stop_lon", "stop_lat"), crs = 4326)
+poligonos_barrios <- cbind(poligonos_barrios, geojson_sf(poligonos_barrios$geo_shape))
+
+
+estaciones$barrio <- sapply(1:nrow(estaciones), function(i) {
+  establecer_barrio(estaciones[i,], poligonos_barrios)
+})
+
+carac_metro <- merge(carac_metro, estaciones[,c("stop_id", "barrio")], by = "stop_id", all.x = TRUE)
+
+barrios <- read.csv("../00_marc/dataTratada/barrios_indices.csv")
+barrios[is.na(barrios)] <- 0
+barrios_total <- read.csv("../00_marc/dataTratada/barrios_final.csv")
+carac_metro_barrio <- data.frame()
+
+carac_metro_barrio <- barrios %>% select(-paradas_metro, -paradas_emt, -estaciones_valenbisi) %>%
+  merge(carac_metro, by = "barrio", all.y = TRUE)
+b <- poligonos_barrios %>% select(-paradas_metro, -geo_shape, -precio_alquiler,
+                                  -geometry, -distrito)
+carac_metro_barrio <- b %>%
+  merge(carac_metro_barrio, by = "barrio", all.y = TRUE)
+carac_metro_barrio <- barrios_total %>% select(barrio, RENTA_BRUTA, SALARIO, Precio_alquiler.m2, 
+                                               Precio_venta.m2) %>%
+  merge(carac_metro_barrio, by = "barrio", all.y = TRUE)
+
+carac_metro_barrio <- carac_metro_barrio[!is.na(carac_metro_barrio$barrio) |
+                                           carac_metro_barrio$stop_id %in% c("55","56"),]
+
+load("../00_ferran/graph_metro_valencia.RData")
+
+g_valencia <- induced_subgraph(g, V(g)$name %in% carac_metro_barrio$stop_id)
+
+
+aux <- data.frame(apply(carac_metro[,c("pagerank", "closeness", "betweenness", "eigenvector")],
+                        2, function(x) x/max(x)))
+
+carac_metro <- carac_metro %>%
+  select(-c("pagerank", "closeness", "betweenness", "eigenvector")) %>%
+  cbind(aux)
+
+plot_graph <- function(dataset,color, tamanyo){
+  
+  library(leaflet)
+  
+  colors <- colorNumeric(palette = "YlGnBu", domain = color)
+  
+  b <- st_as_sf(dataset, crs = 4326)
+  
+  
+  plot_isochron <- function(subgrafo) {
+    
+    edge_list <- as_edgelist(subgrafo)
+    
+    m = leaflet() %>% addTiles() # urlTemplate = ""
+    
+    for (i in 1:nrow(edge_list)) {
+      edge <- edge_list[i,]
+      head_edge <- V(subgrafo)[edge[1]]
+      tail_edge <- V(subgrafo)[edge[2]]
+      
+      m <- m %>%
+        addPolylines(lng = c(head_edge$lon, tail_edge$lon), lat = c(head_edge$lat, tail_edge$lat),
+                     color = "#35434c", weight = 2, opacity = 0.9)
+    }
+    
+    # add nodes to map
+    #m <- m %>% addCircleMarkers(lng = V(subgrafo)$lon, lat = V(subgrafo)$lat, radius = 5, color = "red")
+    #m <- m %>% addCircleMarkers(lng = start_node$x, lat = start_node$y, radius = 5, color = "yellow")
+    return(m)
+  }
+  
+  
+  mapa <- plot_isochron(g)
+  
+  mapa <- mapa %>%
+    addCircleMarkers(data = b, color = ~colors(color), radius = ~((tamanyo^2)*5) + 3, fillOpacity = 1,
+                     popup = ~paste(stop_name)) %>%
+    setView(lng = -0.377, lat = 39.465, zoom = 12)
+  
+  
+  mapa
+}
+
+m <- plot_graph(carac_metro, color = carac_metro$pagerank, tamanyo = carac_metro$pagerank) # pagerank pagerank
+ruta1 <- paste0("./mapas/grafo/", "pagerank", "pagerank", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$pagerank, tamanyo = carac_metro$betweenness) # pagerank betweenness
+ruta1 <- paste0("./mapas/grafo/","pagerank","betweenness", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$pagerank, tamanyo = carac_metro$closeness) # pagerank closeness
+ruta1 <- paste0("./mapas/grafo/","pagerank" , "closeness", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$pagerank, tamanyo = carac_metro$eigenvector) # pagerank eigenvector
+ruta1 <- paste0("./mapas/grafo/", "pagerank", "eigenvector", ".rds") 
+saveRDS(m, file = ruta1)
+
+#--------------------------------------------------------------
+# betweenness pagerank
+# betweenness betweenness
+# betweenness closeness
+# betweenness eigenvector
+
+m <- plot_graph(carac_metro, color = carac_metro$betweenness, tamanyo = carac_metro$pagerank) # pagerank pagerank
+ruta1 <- paste0("./mapas/grafo/", "betweenness", "pagerank", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$betweenness, tamanyo = carac_metro$betweenness) # pagerank betweenness
+ruta1 <- paste0("./mapas/grafo/","betweenness","betweenness", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$betweenness, tamanyo = carac_metro$closeness) # pagerank closeness
+ruta1 <- paste0("./mapas/grafo/","betweenness" , "closeness", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$betweenness, tamanyo = carac_metro$eigenvector) # pagerank eigenvector
+ruta1 <- paste0("./mapas/grafo/", "betweenness", "eigenvector", ".rds") 
+saveRDS(m, file = ruta1)
+
+#--------------------------------------------------------------
+
+m <- plot_graph(carac_metro, color = carac_metro$closeness, tamanyo = carac_metro$pagerank) # pagerank pagerank
+ruta1 <- paste0("./mapas/grafo/", "closeness", "pagerank", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$closeness, tamanyo = carac_metro$betweenness) # pagerank betweenness
+ruta1 <- paste0("./mapas/grafo/","closeness","betweenness", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$closeness, tamanyo = carac_metro$closeness) # pagerank closeness
+ruta1 <- paste0("./mapas/grafo/","closeness" , "closeness", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$closeness, tamanyo = carac_metro$eigenvector) # pagerank eigenvector
+ruta1 <- paste0("./mapas/grafo/", "closeness", "eigenvector", ".rds") 
+saveRDS(m, file = ruta1)
+
+#--------------------------------------------------------------
+
+m <- plot_graph(carac_metro, color = carac_metro$eigenvector, tamanyo = carac_metro$pagerank) # pagerank pagerank
+ruta1 <- paste0("./mapas/grafo/", "eigenvector", "pagerank", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$eigenvector, tamanyo = carac_metro$betweenness) # pagerank betweenness
+ruta1 <- paste0("./mapas/grafo/","eigenvector","betweenness", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$eigenvector, tamanyo = carac_metro$closeness) # pagerank closeness
+ruta1 <- paste0("./mapas/grafo/","eigenvector" , "closeness", ".rds") 
+saveRDS(m, file = ruta1)
+
+m <- plot_graph(carac_metro, color = carac_metro$eigenvector, tamanyo = carac_metro$eigenvector) # pagerank eigenvector
+ruta1 <- paste0("./mapas/grafo/", "eigenvector", "eigenvector", ".rds") 
+saveRDS(m, file = ruta1)
+
+
+#OPCIONES color --> pagerank, betweenness, closeness, eigenvector, c("PageRank", "Intermediación", "Cercanía", "VectorPropio")
+
+#OPCIONES tamanyo --> pagerank, betweenness, closeness, eigenvector, c("PageRank", "Intermediación", "Cercanía", "VectorPropio")
+
+#PARA GUARDAR LOS MAPAS
+ruta0 <- "./mapas/grafo/"
+color = "pagerank"
+tamanyo = "pagerank"
+
+ruta1 <- paste0("./mapas/grafo/", color, tamanyo, ".rds") 
+
+saveRDS(caca, file = ruta1)
+
+
+
+
+
+
+
+
