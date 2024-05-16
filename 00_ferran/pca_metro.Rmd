@@ -28,6 +28,7 @@ Vamos a realizar un análisis de componentes principales (PCA) con datos de las 
 library(arrow)
 library(dplyr)
 carac_metro <- read_parquet("../data/caracteristicas_metro.parquet")
+carac_metro <- carac_metro %>% select(-lines)
 rownames(carac_metro) <- carac_metro$stop_name
 
 
@@ -173,7 +174,8 @@ Tras esto se vuelve a realizar el PCA con las variables indicadas.
 
 ```{r pca2}
 datos_pca2 <- carac_metro %>% select(c("neighbours_in", "neighbours_out", "betweenness",
-                                  "closeness","n_lines","capacidad_hora","metros_hora"))
+                                  "closeness","n_lines","capacidad_hora","metros_hora",
+                                  "pagerank", "eigenvector"))
 
 datos_pca2 <- scale(datos_pca2)
 res.pca2 <- PCA(datos_pca2, scale.unit = FALSE, graph = FALSE)

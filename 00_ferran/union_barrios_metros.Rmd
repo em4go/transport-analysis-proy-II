@@ -296,13 +296,21 @@ load("graph_metro_valencia.RData")
 g_valencia <- induced_subgraph(g, V(g)$name %in% carac_metro_barrio$stop_id)
 
 
-plot_graph <- function(dataset,color, tamanyo, g_fun){
+aux <- data.frame(apply(carac_metro[,c("pagerank", "closeness", "betweenness", "eigenvector")],
+                        2, function(x) x/max(x)))
+
+carac_metro <- carac_metro %>%
+  select(-c("pagerank", "closeness", "betweenness", "eigenvector")) %>%
+  cbind(aux)
+
+plot_graph <- function(dataset,color, tamanyo){
   
   library(leaflet)
     
   colors <- colorNumeric(palette = "YlGnBu", domain = color)
   
   b <- st_as_sf(dataset, crs = 4326)
+  
   
     plot_isochron <- function(subgrafo) {
     
@@ -317,7 +325,7 @@ plot_graph <- function(dataset,color, tamanyo, g_fun){
         
         m <- m %>%
           addPolylines(lng = c(head_edge$lon, tail_edge$lon), lat = c(head_edge$lat, tail_edge$lat),
-                       color = "#35434c")
+                       color = "#35434c", weight = 2, opacity = 0.9)
       }
       
       # add nodes to map
@@ -327,9 +335,10 @@ plot_graph <- function(dataset,color, tamanyo, g_fun){
     }
   
   
-  mapa <- plot_isochron(g_fun)
+  mapa <- plot_isochron(g)
+  
   mapa <- mapa %>%
-    addCircleMarkers(data = b, color = ~colors(color), radius = ~(tamanyo*70)^2 , fillOpacity = 1,
+    addCircleMarkers(data = b, color = ~colors(color), radius = ~((tamanyo^2)*5) + 3, fillOpacity = 1,
                      popup = ~paste(stop_name))
   
   
@@ -338,7 +347,7 @@ plot_graph <- function(dataset,color, tamanyo, g_fun){
 
 
 
-plot_graph(carac_metro, color = carac_metro$pagerank, tamanyo = carac_metro$closeness, g_fun = g)
+plot_graph(carac_metro, color = carac_metro$pagerank, tamanyo = carac_metro$eigenvector)
 ```
 
 
