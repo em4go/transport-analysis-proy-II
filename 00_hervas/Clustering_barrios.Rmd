@@ -167,7 +167,7 @@ Observasmos que el estadístico de Hopkins para la distancia  de es ligeramente 
 
 ## Modelos
 
-En este análisis vamos a comparar por un lado, modelos jerárquicos, Ward y Complete, y por otro lado, modelos de partición, K-medias y K-medoides. Además, vamos a comparar estos modelos con un modelo soft, Fuzzy C-means (FCM). 
+En este análisis vamos a comparar por un lado, modelos jerárquicos, Ward y Complete, y por otro lado, modelos de partición, K-medias y K-medoides.  
 Para la elección del número de clusters, combinaremos el análisis del coeficiente de Silhouette con la variabilidad intra-cluster.
 
 ## Modelos jerárquicos
@@ -505,6 +505,15 @@ El cluster 3, destaca por presentar valores bajos en todas las variables, especi
 El cluster 4 destaca por ser el cluster con un mayor indice de ricos, es decir, agrupa los barrios donde el nivel de vida es más costoso. Además, destaca por el gran número de servicios que presenta por $m^2$ así como su buen transporte, destacando en paradas de emt y estaciones de valenbisi.
 Por último, el cluster 5 destaca por la cantidad de transporte público que alberga, destacando grandiosamente en el número de paradas de metro, aunque el número de paradas de emt y estaciones de valenbisi también es bueno. Tambíen es un clster que agrupa barrios con un nivel de vida costoso.
 
+Para finalizar la interpretación de los clusters vamos a sacar el porcentaje de barrios de cada cluster que tienen alguno de los servicions especiales (Universidad, Estadio, Hospitales, Cargadores) que hemos seleccionado en el análisis. Ya que no hemos podido tenerlos en cuenta.
+
+```{r}
+dataBarrios3$cluster<-ward5
+dataBarrios3$Especial<-ifelse(rowSums(dataBarrios[, c("Universidad", "Estadio", "Hospitales", "Cargadores")]) > 0, 1, 0)
+porcentaje_cluster <- aggregate(Especial ~ cluster, data = dataBarrios3, FUN = function(x) mean(x == 1) * 100)
+porcentaje_cluster
+```
+Podemos observar como al igual que en el perfil medio de los clusters, el cluster 4 es el que presenta un mayor porcentaje de barrios con servicios especiales. Por otro lado, el cluster 3 es el que presenta un menor porcentaje de barrios con servicios especiales. Del cluster 5 no se puede sacar una conclusión clara, ya que solo contiene un barrio.
 
 ## Mapa de barrios por clusters
 
@@ -517,26 +526,46 @@ data_geo<-read_parquet("../data/info_general_barrio.parquet")
 
 dataBarrios3<-cbind(dataBarrios2, geojson_sf(data_geo$geo_shape))
 dataBarrios3$cluster<-ward5
-
 ```
+
+
 
 ```{r}
 
 colors_cluster <- colorFactor(palette =c("#f5587b", "#f0f696","#66ddaa","#2f89fc", "#a56cc1") , domain = dataBarrios3$cluster)
 
+# Calcular los centroides de los polígonos
+centroides <- lapply(dataBarrios3$geometry, function(poly) {
+  centro <- st_centroid(poly)
+  return(c(x = st_coordinates(centro)[1], y = st_coordinates(centro)[2]))
+})
+
+# Crear un dataframe con los centroides
+centroides2 <- data.frame(lon = sapply(centroides, "[[", "x"),
+                             lat = sapply(centroides, "[[", "y"))
+
+centroides3<-centroides2[dataBarrios3$Especial==1,]
+lista_iconos <- icons(iconUrl = 'https://cdn.icon-icons.com/icons2/3002/PNG/512/pushpin_icon_187849.png', iconWidth = c(20), iconHeight = c(20))
+m2 <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = dataBarrios3, fillColor = ~colors_cluster(cluster), fillOpacity = 1, weight = 0.5, color = "black",
+              popup = rownames(dataBarrios3)) %>%
+  addMarkers(data = centroides3, popup = rownames(dataBarrios3), icon=lista_iconos)
+m2
 m <- leaflet() %>%
   addTiles() %>%
   addPolygons(data = dataBarrios3, fillColor = ~colors_cluster(cluster), fillOpacity = 1, weight = 0.5, color = "black",
               popup = rownames(dataBarrios3))
+
 m
 ```
 
 Al observar el mapa vemos que efectivamente, los clusters y la localización de los barrios estan relacionados. 
 
-El clsuter 4 (azul), era el cluster que agrupaba los barrios con un nivel de vida más costoso, y con mayor número de servicions disponible y efectivamente, estos barrios se encuentran en la zona más céntrica de la ciudad, donde el nivel de vida es más elevado y hay una gran afluencia.
+El cluster 4 (azul), era el cluster que agrupaba los barrios con un nivel de vida más costoso, y con mayor número de servicions disponible y efectivamente, estos barrios se encuentran en la zona más céntrica de la ciudad, donde el nivel de vida es más elevado y hay una gran afluencia.
 El cluster 3 (verde), agrupaba los barrios con valores bajos en todas las variables, y efectivamente, estos barrios se encuentran en la periferia de la ciudad, donde el nivel de vida es más bajo y hay menos afluencia.
 El cluster 5 (morado), únicamente contiene a un barrio (la Roqueta), que es el barrio con mayor número de transporte público, y tiene sentido, ya que se encuentra en la zona más céntrica de la ciudad, donde hay una mayor afluencia de transporte público y se encuentran las paradas de metro más concurridas. Además, al igual que los barrios del cluster 4, es un barrio que por su localización, tiene un nivel de vida más costoso.
-Por último, el resto de barrios que se encuentran en la zona intermedia de la ciudad, no presentan valores en las variables que los diferencien del resto de clusters, unicamente, los barrios del cluster 2 (amarillo), que presentan un grado de eco-friendly más elevado, debido a una mayor presencia de zonas verdes. Tiene sentido que las zonas verdes de la ciudad se alejen de la zonas más céntricas, debido a que son las zonas con más infraestructuras, por lo demás es lógico que no se agrupen en una zona concreta.
+Por último, el resto de barrios que se encuentran en la zona intermedia de la ciudad, no presentan valores en las variables que los diferencien del resto de clusters, unicamente, los barrios del cluster 2 (amarillo), que presentan un grado de eco-friendly más elevado, debido a una mayor presencia de zonas verdes. Tiene sentido que las zonas verdes de la ciudad se alejen de la zonas más céntricas, debido a que son las zonas con más infraestructuras, por lo demás es lógico que no se agrupen en una zona concreta. Además, seguramente debido al mayor grado de eco-friendly del cluster 2 respecto al cluster 1, los barrios del cluster 2 presentan un mayor costo del nivel de vida.
 
 
 ```{r}
@@ -546,7 +575,9 @@ m2 <- leaflet() %>%
   addTiles() %>%
   addPolygons(data = dataBarrios3, fillColor = ~colors_cluster(dataBarrios$Distrito), fillOpacity = 1, weight = 0.5, color = "black",
               popup = rownames(dataBarrios3))
-m2
+
+
+ m <- m %>% addMarkers(lng = X, lat = Y, popup = gtfs.stop[gtfs.stop$distance_to_start < dist,]$station_name, icon = icon)
 ```
 
 
