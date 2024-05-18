@@ -555,16 +555,175 @@ saveRDS(m, file = ruta1)
 
 #OPCIONES tamanyo --> pagerank, betweenness, closeness, eigenvector, c("PageRank", "Intermediación", "Cercanía", "VectorPropio")
 
-#PARA GUARDAR LOS MAPAS
-ruta0 <- "./mapas/grafo/"
-color = "pagerank"
-tamanyo = "pagerank"
 
-ruta1 <- paste0("./mapas/grafo/", color, tamanyo, ".rds") 
+posibles_puntos <- c("Mercado Central Valencia")
+posibles_distancias <-  c(1000)
 
-saveRDS(caca, file = ruta1)
+plot_isochron <- function(subgrafo, start_node, gtfs.stop, dist) {
+  
+  edge_list <- as_edgelist(subgrafo)
+  
+  m = leaflet() %>% addTiles()
+  
+  for (i in 1:nrow(edge_list)) {
+    edge <- edge_list[i,]
+    head_edge <- V(subgrafo)[edge[1]]
+    tail_edge <- V(subgrafo)[edge[2]]
+    # a la polyline le pongo este color 8DADAB
+
+    m <- m %>%
+      addPolylines(lng = c(head_edge$x, tail_edge$x), lat = c(head_edge$y, tail_edge$y), color = "#8DADAB")
+  }
+  
+  # add nodes to map
+  #m <- m %>% addCircleMarkers(lng = V(subgrafo)$x, lat = V(subgrafo)$y, radius = 5, color = "red")
+  
+  lista_iconos1 <- icons(iconUrl = "https://cdn-icons-png.freepik.com/512/4225/4225606.png", NA,
+                         iconWidth = c(45), iconHeight = c(45))
+  
+  m <- m %>% addMarkers(lng = start_node$x, lat = start_node$y, popup = "Nodo Inicial", icon = lista_iconos1)
+  
+  #añadimos los puntos de las paradas de metrovalencia
+  
+  X <- gtfs.stop[gtfs.stop$distance_to_start < dist,]$x
+  Y <- gtfs.stop[gtfs.stop$distance_to_start < dist,]$y
+  
+  lista_iconos <- icons(iconUrl = "https://cdn.icon-icons.com/icons2/916/PNG/512/Marker_icon-icons.com_71852.png", NA,
+                        iconWidth = c(40), iconHeight = c(40))
+  
+  m <- m %>% addMarkers(lng = X, lat = Y, popup = paste0(gtfs.stop[gtfs.stop$distance_to_start < dist,]$station_name, "-METRO"), icon = lista_iconos)
+  
+  return(m)
+}
+#CATEDRAL 500, MERCADO CENTRA METRO 1000
+
+for (lugar in posibles_puntos) {
+  for (distancia in posibles_distancias) {
+    sitio <- paste(lugar, distancia)
+    sitio_sin_espacios <- gsub(" ", "", sitio)  
+    ruta <- paste0("./mapas/", sitio_sin_espacios, "TODOS.rds")
+    
+    nodo_entrada <- get_start_node(grafo, lugar)
+    #print("ESTACIONES METRO")
+    estaciones_metro <- get_gtfs_distance(gtfs_metro, grafo, nodo_entrada, distancia)
+    #print("ESTACIONES METRO, TERMINA")
+    #print("ESTACIONES BUS")
+    estaciones_bus <- get_gtfs_distance(gtfs_emt, grafo, nodo_entrada, distancia)
+    #print("ESTACIONES BUS, TERMINA")
+    subgraf <- isochron(grafo, nodo_entrada$x, nodo_entrada$y, E(grafo)$length, distancia)
+    
+    start_node <- find_nearest_node(grafo, nodo_entrada$x, nodo_entrada$y)
+    
+    #print("PLOT_ISOCHRON")
+    mapa <- plot_isochron(subgraf, start_node, estaciones_bus, distancia)
+    
+    X <- estaciones_metro[estaciones_metro$distance_to_start < distancia,]$x
+    Y <- estaciones_metro[estaciones_metro$distance_to_start < distancia,]$y
+    
+    lista_iconos <- icons(iconUrl = "https://cdn-icons-png.freepik.com/512/684/684908.png", NA,
+                          iconWidth = c(40), iconHeight = c(40))
+    
+    mapa <- mapa %>% addMarkers(lng = X, lat = Y, popup = paste0(estaciones_metro[estaciones_metro$distance_to_start < distancia,]$station_name, "-METRO"), icon = lista_iconos)
+    
+    if (nrow(estaciones_bus) > 0) {
+      for (i in 1:nrow(estaciones_bus)) {
+        estacion <- estaciones_bus[i,]
+        
+        grafo1 <- add_vertices(grafo, 1, name = estacion$station_name, x = estacion$x, y = estacion$y)
+        
+        nodo <- find_nearest_node(grafo1, estacion$x, estacion$y)
+        
+        connect_nearest_nodes(grafo1, estacion$x, estacion$y)
+        
+        nodo_inicio <- get_start_node(grafo1, lugar)
+        
+        camino_mas_corto <- shortest_paths(grafo1, from = nodo_inicio, to = nodo, mode = "out")
+        
+        mapa <- add_path_to_mapBUS(mapa, grafo1, camino_mas_corto$vpath[[1]])
+        #print("MAPA DIKSTRA BUS")
+      }
+    }
+    
+    if (nrow(estaciones_metro) > 0) {
+      for (i in 1:nrow(estaciones_metro)) {
+        estacion <- estaciones_metro[i,]
+        
+        grafo1 <- add_vertices(grafo, 1, name = estacion$station_name, x = estacion$x, y = estacion$y)
+        
+        nodo <- find_nearest_node(grafo1, estacion$x, estacion$y)
+        
+        connect_nearest_nodes(grafo1, estacion$x, estacion$y)
+        
+        nodo_inicio <- get_start_node(grafo1, lugar)
+        
+        camino_mas_corto <- shortest_paths(grafo1, from = nodo_inicio, to = nodo, mode = "out")
+        
+        mapa <- add_path_to_map(mapa, grafo1, camino_mas_corto$vpath[[1]])
+        #print("MAPA DIKSTRA METRO")
+      }
+    }
+    print(ruta)
+    
+  }
+}
+library(mapview)
+library(webshot)
+library(leaflet)
 
 
+mapa
+
+mapa %>% addProviderTiles(providers$CartoDB.Positron)
+
+mapshot(mapa, file = "./fotos/CatedralBlanco.png")
+
+
+posibles_puntos <- c("Mercado Central Valencia")
+posibles_distancias <- c(1000)
+
+for (lugar in posibles_puntos) {
+  for (distancia in posibles_distancias) {
+    sitio <- paste(lugar, distancia)
+    sitio_sin_espacios <- gsub(" ", "", sitio)  
+    ruta <- paste0("./mapas/", sitio_sin_espacios, ".rds")
+    
+    nodo_entrada <- get_start_node(grafo, lugar)
+    
+    estaciones_selec <- get_gtfs_distance(gtfs_metro, grafo, nodo_entrada, distancia)
+    
+    subgraf <- isochron(grafo, nodo_entrada$x, nodo_entrada$y, E(grafo)$length, distancia)
+    
+    start_node <- find_nearest_node(grafo, nodo_entrada$x, nodo_entrada$y)
+    
+    mapa <- plot_isochron(subgraf, start_node, estaciones_selec, distancia)
+    
+    if (nrow(estaciones_selec) > 0) {
+      for (i in 1:nrow(estaciones_selec)) {
+        estacion <- estaciones_selec[i,]
+        
+        grafo1 <- add_vertices(grafo, 1, name = estacion$station_name, x = estacion$x, y = estacion$y)
+        
+        nodo <- find_nearest_node(grafo1, estacion$x, estacion$y)
+        
+        connect_nearest_nodes(grafo1, estacion$x, estacion$y)
+        
+        nodo_inicio <- get_start_node(grafo1, lugar)
+        
+        camino_mas_corto <- shortest_paths(grafo1, from = nodo_inicio, to = nodo, mode = "out")
+        
+        mapa <- add_path_to_mapBUS(mapa, grafo1, camino_mas_corto$vpath[[1]])
+      }
+    }
+    print(ruta)
+  }
+}
+
+
+mapa
+
+mapa %>% addProviderTiles(providers$CartoDB.Positron)
+
+mapshot(mapa, file = "./fotos/MercadoBlanco.png")
 
 
 
