@@ -508,8 +508,13 @@ Por último, el cluster 5 destaca por la cantidad de transporte público que alb
 Para finalizar la interpretación de los clusters vamos a sacar el porcentaje de barrios de cada cluster que tienen alguno de los servicions especiales (Universidad, Estadio, Hospitales, Cargadores) que hemos seleccionado en el análisis. Ya que no hemos podido tenerlos en cuenta.
 
 ```{r}
+data_geo<-read_parquet("../data/info_general_barrio.parquet")
+
+dataBarrios3<-cbind(dataBarrios2, geojson_sf(data_geo$geo_shape))
+
 dataBarrios3$cluster<-ward5
 dataBarrios3$Especial<-ifelse(rowSums(dataBarrios[, c("Universidad", "Estadio", "Hospitales", "Cargadores")]) > 0, 1, 0)
+
 porcentaje_cluster <- aggregate(Especial ~ cluster, data = dataBarrios3, FUN = function(x) mean(x == 1) * 100)
 porcentaje_cluster
 ```
@@ -520,13 +525,7 @@ Podemos observar como al igual que en el perfil medio de los clusters, el cluste
 Para finalizar y observar si tiene relación la geolocalización de los barrios con los clusters a los que pertenecen, vamos a representar un mapa de la ciudad de Valencia dividida por barrios, coloreando cada barrio según el cluster al que pertenece.
 
 
-```{r}
 
-data_geo<-read_parquet("../data/info_general_barrio.parquet")
-
-dataBarrios3<-cbind(dataBarrios2, geojson_sf(data_geo$geo_shape))
-dataBarrios3$cluster<-ward5
-```
 
 
 
@@ -571,13 +570,12 @@ Por último, el resto de barrios que se encuentran en la zona intermedia de la c
 ```{r}
 colors_cluster <- colorFactor(palette =rainbow(19) , domain = dataBarrios$Distrito)
 
-m2 <- leaflet() %>%
+m3 <- leaflet() %>%
   addTiles() %>%
   addPolygons(data = dataBarrios3, fillColor = ~colors_cluster(dataBarrios$Distrito), fillOpacity = 1, weight = 0.5, color = "black",
               popup = rownames(dataBarrios3))
 
-
- m <- m %>% addMarkers(lng = X, lat = Y, popup = gtfs.stop[gtfs.stop$distance_to_start < dist,]$station_name, icon = icon)
+m3
 ```
 
 
@@ -587,5 +585,10 @@ m2 <- leaflet() %>%
 ```
 
 
+```{r}
+dataBarrios4<-st_drop_geometry(dataBarrios3)
+write_parquet(dataBarrios4, "cluster_barrios.parquet")
+
+```
 
 

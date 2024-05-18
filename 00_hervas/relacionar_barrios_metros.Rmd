@@ -1,0 +1,65 @@
+---
+title: "RELACIÓN BARRIOS-METROS"
+author: "ALEJANDRO"
+date: "2024-05-17"
+output: 
+  html_document:
+    toc: true
+    number_sections: false
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(leaflet)
+library(sf)
+library(dplyr)
+library(geojsonsf)
+library(arrow)
+```
+
+Para poder observar si existe relación entre los tipos de paradas de metro y las distintas agrupaciones de barrios, se ha realizado un mapa en el que se muestran los barrios de Valencia coloreados por el cluster al que pertenecen y superpuesto a estos, las paradas de metro coloreados según su cluster.
+
+```{r}
+dataMetros<-read_parquet("cluster_metro.parquet")
+dataBarrios<-read_parquet("cluster_barrios.parquet")
+data_geo<-read_parquet("../data/info_general_barrio.parquet")
+
+dataBarrios<-st_as_sf(cbind(dataBarrios, geojson_sf(data_geo$geo_shape)))
+```
+
+```{r}
+color_barrio <- colorFactor(palette =c("#f5587b", "#f0f696","#66ddaa","#2f89fc", "#a56cc1") , domain = dataBarrios$cluster)
+
+color_metro <- colorFactor(palette =c("red","yellow","green","lightblue","blue3","purple1"), domain = dataMetros$cluster)
+
+
+m <- leaflet() %>%
+  addTiles() %>%
+  setView(lng = -0.3763, lat = 39.4699, zoom = 12) %>%
+  addPolygons(data = dataBarrios, fillColor = ~color_barrio(cluster), fillOpacity = 1, weight = 0.5, color = "black") %>%
+addCircleMarkers(data =dataMetros , lng = ~stop_lon, lat = ~stop_lat,  radius=5,color=~color_metro(cluster), fillOpacity =1, popup=dataMetros$stop_name ) 
+ 
+m
+
+```
+
+Del siguiente gráfico podemos sacar una serie de conclusiones:
+Primeramente, los barrios del cluster verde, no tienen apenas paradas de metro a comparación del resto de barrios, y las paradas que caen en estos barrios se encuentran en las frontera de estos con otro barrio. Además, las paradas de estos barrios son del cluster verde y amarillo, es decir, los menos importantes y centrales dentro de la red.
+
+Los barrios de los clusters amarillo y rojo, tienen una mayor proporcion de paradas de metro, aunque en su mayoria estas son del cluster amarillo y azul claro, paradas intermedias. Sin embargo, observamos paradas del cluster morado y rojas que caen en barrios de estos clusters, son paradas con mucha importancia en la red y que otorgan mucha movilidad, pero no es así para todos los barrios, son zonas puntuales.
+
+Los barrios del cluster azul , tienen paradas del cluster azul oscuro, paradas muy centrales y muy conectadas, esto concuerda ya que estos barrios son los pertenecientes al centro de la ciudad.
+
+El barrio del cluster morado, cuenta con gran número de paradas de metro, que ademas son centrales y muy importantes para la red.
+
+En conclusion, mejores zonas en cuanto a movilidad en el transporte metropolitano son el barrio del cluster morado, los del cluster azul y las zonas donde se encuetran las paradas del cluster morado.
+Las peores zonas en cuanto a movilidad en el transporte metropolitano son los barrios del cluster verde, ya que no cuentan con pocas paradas de metro y que otorgan escasa movilidad y poco centrales.
+
+```{r}
+saveRDS(m, file = "../00_marc/mapas/metros_barrios_cluster.rds")
+```
+

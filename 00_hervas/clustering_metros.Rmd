@@ -412,7 +412,7 @@ legend("topleft", as.character(1:6), col =rainbow(6), lwd = 2, ncol = 3, bty = "
 En este gráfico se refuerzan las conclusiones observadas en los gráficos del PCA y nos permite observar otras.
 
 El cluster 1 presenta valores altos en las variables neighbours_in, neighbours_out, pagerank y eigenvector.Mientras que presenta valores intermedios en las variables betweenness, closeness, n_lines, capacidad_hora y metros_hora.
-Esto quiere decir que las paradas pertenecientes a este cluster tienen una gran importancia en la red, ya que tienen un gran nñumero de vecinos, y sus vecinos también son importantes en la red. Además, son puntos críticos en la conectividad de la red. Sin embargo, no son nodos muy centrales y con muchas lineas ni capacidad.
+Esto quiere decir que las paradas pertenecientes a este cluster tienen una gran importancia en la red, ya que tienen un gran numero de vecinos, y sus vecinos también son importantes en la red. Además, son puntos críticos en la conectividad de la red. Sin embargo, no son nodos muy centrales y con muchas lineas ni capacidad.
 
 El cluster 2, que es el cluster más numeroso presenta valores intermedios en todas las variables, por lo que no se puede destacar ninguna característica en concreto. Estas paradas son las más comunes en la red.
 
@@ -438,6 +438,12 @@ dataMetros3$cluster <- ward6
 ```
 
 ```{r}
+data_geo<-read_parquet("../data/info_general_barrio.parquet")
+
+valencia<- geojson_sf(data_geo$geo_shape)
+```
+
+```{r}
 mapa_valencia <- leaflet() %>%
   setView(lng = -0.375, lat = 39.4667, zoom = 12) %>%
   addTiles()
@@ -446,14 +452,25 @@ mapa_valencia <- leaflet() %>%
 palette <- colorFactor(palette =c("red","yellow","green","lightblue","blue3","purple1"), domain = dataMetros3$cluster)
 
 mapa_valencia <- mapa_valencia %>%
-  addCircleMarkers(data =dataMetros3 , lng = ~stop_lon, lat = ~stop_lat, popup=rownames(dataMetros), radius=5,color=~palette(cluster), fillOpacity =1)
+  addCircleMarkers(data =dataMetros3 , lng = ~stop_lon, lat = ~stop_lat, popup=rownames(dataMetros), radius=5,color=~palette(cluster), fillOpacity =1) %>%
+  addPolygons(data = valencia, fillColor = "transparent", weight = 1, color = "black")
+ 
 
 
 
 mapa_valencia
 ```
 
+Al observar las paradas de metro en el mapa de Valencia, podemos observar que el las paradas del cluster verde, que tenian valores bajos en todas las variables, se encuentran en su mayoria fuera de la ciudad de Valencia, y suelen ser paradas de fin de linea, lo que explica su bajo número de conexiones asi como importancia en la red.
+En cuanto a las paradas del cluster amarillo, que presentaban valores intermedios en todas las variables, son las paradas más comunes en la red, y se encuentran por repartidas por toda la zona, excepto las zonas más centrales. Además, no son paradas donde se separen las lineas.
+Las nodos del cluster azul claro, caracterizado por valores intermedios pero con mayor centralidad y capacidad. Se reparten de forma muy similar a los nodos del cluster amarillo, pero se encuentran más centrados en la red, no tan cerca de los finales de linea.
+Las paradas del cluster rojo, caracterizadas por tener muchos vecinos pero poca centralidad, se encuentran en puntos donde se separa la línea, por lo que son importantes en la red, pero en su mayoría no son paradas muy centrales.
+El cluster azul oscuro, que presenta valores altos en todas las variables, pero con menos importancia en la red, debido a que se encuentran en las zonas más centrales de la red y son los nodos con más capacidad y afluencia en la red, pero no son nodos donde se crucen muchas líneas.
+Por últimos, las paradas del cluster morado, que presentan valores altos en todas las variables, observamos que no son tan centrales como las del cluster anterior pero siguen siendolo, y a diferencia de estos, están mucho más conectadas y son los nodos más importantes en la red, ya que son los nodos donde se cruzan más líneas.
 
+```{r}
+write_parquet(dataMetros3, "cluster_metro.parquet")
+```
 
 
 
