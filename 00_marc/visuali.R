@@ -556,8 +556,8 @@ saveRDS(m, file = ruta1)
 #OPCIONES tamanyo --> pagerank, betweenness, closeness, eigenvector, c("PageRank", "Intermediación", "Cercanía", "VectorPropio")
 
 
-posibles_puntos <- c("Mercado Central Valencia")
-posibles_distancias <-  c(1000)
+posibles_puntos <- c("Catedral de Valencia")
+posibles_distancias <-  c(500)
 
 plot_isochron <- function(subgrafo, start_node, gtfs.stop, dist) {
   
@@ -673,9 +673,10 @@ library(leaflet)
 
 mapa
 
-mapa %>% addProviderTiles(providers$CartoDB.Positron)
+mapa2 <- mapa %>% addProviderTiles(providers$CartoDB.Positron)
+mapa2
 
-mapshot(mapa, file = "./fotos/CatedralBlanco.png")
+mapshot(mapa2, file = "./fotos/CatedralBlanco.png")
 
 
 posibles_puntos <- c("Mercado Central Valencia")
@@ -721,9 +722,10 @@ for (lugar in posibles_puntos) {
 
 mapa
 
-mapa %>% addProviderTiles(providers$CartoDB.Positron)
+mapa1 <- mapa %>% addProviderTiles(providers$CartoDB.Positron)
+mapa1
 
-mapshot(mapa, file = "./fotos/MercadoBlanco.png")
+mapshot(mapa1, file = "./fotos/MercadoBlanco.png")
 
 
 

@@ -8,7 +8,7 @@ m <- readRDS("./app_shiny/mapas/CiudaddelasArtesylasCiencias500TODOS.rds")
 m2 <- readRDS("./app_shiny/mapas/CatedraldeValencia500TODOS.rds")
 m3 <- readRDS("./app_shiny/mapas/MercadoCentralValencia1000.rds")
 
-m %>% addProviderTiles(providers$CartoDB.Positron)
+m %>% addProviderTiles(providers$CartoDB.Positron) 
 m2 %>% addProviderTiles(providers$CartoDB.Positron)
 m3 %>% addProviderTiles(providers$CartoDB.Positron)
 
