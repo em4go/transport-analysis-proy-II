@@ -2,15 +2,17 @@
 library(shiny)
 library(shinythemes)
 
-library(dplyr)
+#library(dplyr)
 library(leaflet)
-library(ggplot2)
-library(tidytransit)
+#library(ggplot2)
+#library(tidytransit)
 library(sf)
-library(lubridate)
-library(igraph)
-library(osmdata)
+#library(lubridate)
+#library(igraph)
+#library(osmdata)
 
+options(shiny.host = "0.0.0.0")
+options(shiny.port = 3838)
 
 ui <- fluidPage(theme = shinytheme("yeti"),
                 tags$head(

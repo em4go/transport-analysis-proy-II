@@ -1,0 +1,1 @@
+R -e "shiny::runApp('./app1.R', port = 3838)"

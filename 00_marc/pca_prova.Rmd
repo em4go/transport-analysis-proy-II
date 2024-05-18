@@ -170,13 +170,5 @@ fviz_pca_var(res.pca, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", 
 fviz_pca_ind(res.pca, habillage = "Distrito" ,repel = TRUE, title = "Individuos", axes = c(1,2))
 ```
 
-```{r})
-```
-
-```{r})
-```
-
-```{r})
-```
 
 
