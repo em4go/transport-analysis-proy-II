@@ -28,7 +28,7 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                            mainPanel(
                              h1("MAPA"),
                              
-                             leafletOutput("mapa", height = 500),
+                             leafletOutput("mapa", height = 700),
                              h5(HTML("El color <span style='color:yellow;font-weight: bold;'>AMARILLO</span> indica el inicio")),
                              h5(HTML("El color <span style='color:red; font-weight: bold;'>ROJO</span> indica que es una parada de metro-tranvía")),
                              h5(HTML("El color <span style='color:white;font-weight: bold;'>NEGRO</span> indica que es una parada de bus")),
@@ -65,7 +65,7 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                            mainPanel(
                              h1("GRAFO"),
                              
-                             leafletOutput("grafoMETRO", height = 500),
+                             leafletOutput("grafoMETRO", height = 700),
           
                                       ), # mainPanel
                            
@@ -89,46 +89,66 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                            fluidRow(
                              column(width = 6,
                                     tags$h3(HTML("Mapa Metro"), align = "left"),
-                                    leafletOutput("mapaMetro", height = 300)
+                                    leafletOutput("mapaMetro", height = 350)
                              ), 
                              column(width = 6,
                                     tags$h3("Mapa Bus", align = "left"),
-                                    leafletOutput("mapaBus", height = 300)
+                                    leafletOutput("mapaBus", height = 350)
                              )
                            ), # fluidRow
                            fluidRow(
                              column(width = 6,
                                     tags$h3("Mapa Valenbici", align = "left"),
-                                    leafletOutput("mapaValenbici", height = 300)
+                                    leafletOutput("mapaValenbici", height = 350)
                              ),
                              column(width = 6,
                                     tags$h3("Mapa Eco", align = "left"),
-                                    leafletOutput("mapaEco", height = 300)
+                                    leafletOutput("mapaEco", height = 350)
                              )
                            ) # fluidRow
                   ), # Navbar , tabPanel
                   tabPanel("Clustering de Barrios",
                            
-                           fluidRow(
-                             column(width = 6,
-                                    tags$h3("Mapa Clustering", align = "left"),
-                                    leafletOutput("mapaClusters", height = 450)
+                           mainPanel(
+                             h1("MAPA DE CLUSTERS"),
+                             
+                             leafletOutput("mapaCLuster", height = 700),
                              ),
-                             column(width = 6,
-                                    tags$h3("Mapa Distritos", align = "left"),
-                                    leafletOutput("mapaDistritos", height = 450)
-                             )
-                           ),
-                          
-                           tags$h4("El análisis del mapa muestra una relación entre la ubicación de los barrios y sus características. 
-                                   Los clusters 4 (azul) representan áreas céntricas con alto nivel de vida y servicios. 
-                                   El cluster 3 (verde) abarca barrios periféricos con menor nivel de vida. 
-                                   El cluster 5 (morado) destaca por su alta densidad de transporte público, 
-                                   especialmente en el centro. Otros barrios muestran similitudes, excepto por los 
-                                   del cluster 2 (amarillo), que tienen más zonas verdes.")
+                           
+                           
+                           sidebarPanel(
+                             tags$h3(HTML("<span style='color:black;'>SELECCIONAR EL MAPA</span>")),
+                             
+                             checkboxGroupInput("cluster",
+                                                 label = "Selecciona el cluster para mostrar:",
+                                                 choices = list("Lineas Metro" = "METRO", "Caracterización" = "BUS")
+                             ),
+                             
+                             leafletOutput("mapaDistritos", height = 400)),
+                             
+                             
+                             )# sidebarPanel
+                           
+                           #fluidRow(
+                          #   column(width = 6,
+                           #         tags$h3("Mapa Clustering", align = "left"),
+                           #         leafletOutput("mapaClusters", height = 450)
+                           #  ),
+                            # column(width = 6,
+                           #         tags$h3("Mapa Distritos", align = "left"),
+                           #         leafletOutput("mapaDistritos", height = 450)
+                           #  )
+                          # ),
+                          #
+                          # tags$h4("El análisis del mapa muestra una relación entre la ubicación de los barrios y sus características. 
+                          #         Los clusters 4 (azul) representan áreas céntricas con alto nivel de vida y servicios. 
+                            #       El cluster 3 (verde) abarca barrios periféricos con menor nivel de vida. 
+                            #       El cluster 5 (morado) destaca por su alta densidad de transporte público, 
+                           #        especialmente en el centro. Otros barrios muestran similitudes, excepto por los 
+                           #        del cluster 2 (amarillo), que tienen más zonas verdes.")
                            
                   ),# NavbarPage
-            ))  # ui fluidPage
+            )  # ui fluidPage
 
 server1 <- function(input, output){
   observe({
@@ -175,8 +195,34 @@ server1 <- function(input, output){
     output$mapaEco <- renderLeaflet(mapaEco)
     
     #---CLUSTERS
-    mapaclus <- readRDS("mapas/cluster_barrios.rds")
-    output$mapaClusters <- renderLeaflet(mapaclus)
+    if (length(input$cluster) == 1){
+      
+      if (input$cluster == "LineasMetro") {
+        
+        mapaclus <- readRDS("./mapas/cluster_barrios.rds")
+        output$mapaCLuster <- renderLeaflet(mapaclus)
+        
+      }
+      
+      else
+      
+      mapaclus <- readRDS("./mapas/cluster_barrios.rds")
+      output$mapaCLuster <- renderLeaflet(mapaclus)
+      
+    }
+    
+    else if (length(input$cluster) == 2) {
+      
+      mapaclus <- readRDS("./mapas/cluster_barrios.rds")
+      output$mapaCLuster <- renderLeaflet(mapaclus)
+    }
+    
+    else {
+      
+      mapaclus <- readRDS("./mapas/valencia.rds")
+      output$mapaCLuster <- renderLeaflet(mapaclus)
+    }
+    
     
     #---DISTRITOS
     mapadist <- readRDS("mapas/distrito_barrios.rds")
