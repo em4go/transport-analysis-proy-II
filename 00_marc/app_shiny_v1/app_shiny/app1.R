@@ -4,6 +4,7 @@ library(shinythemes)
 
 #library(dplyr)
 library(leaflet)
+#library(leaflet.providers)
 #library(ggplot2)
 #library(tidytransit)
 library(sf)
@@ -121,13 +122,32 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                              
                              checkboxGroupInput("cluster",
                                                  label = "Selecciona el cluster para mostrar:",
-                                                 choices = list("Lineas Metro" = "METRO", "Caracterización" = "BUS")
+                                                 choices = list("Lineas Metro" = "LineasMetro", "Caracterización" = "Caracterización")
                              ),
                              
                              leafletOutput("mapaDistritos", height = 400)),
                              
                              
-                             )# sidebarPanel
+                             ),
+                  
+                  tabPanel("Mapas de Calor",
+                           fluidRow(
+                             column(width = 6,
+                                    tags$h3(HTML("Mapa Metro"), align = "left"),
+                                    leafletOutput("hexmetro", height = 350)
+                             ), 
+                             column(width = 6,
+                                    tags$h3("Mapa Valenbisi", align = "left"),
+                                    leafletOutput("hexbici", height = 350)
+                             )
+                           ), # fluidRow
+                           fluidRow(
+                             column(width = 6,
+                                    tags$h3("Mapa Bus", align = "left"),
+                                    leafletOutput("hexBus", height = 350)
+                             )
+                           ) # fluidRow
+                  ), # Navbar , tabPanel
                            
                            #fluidRow(
                           #   column(width = 6,
@@ -194,12 +214,25 @@ server1 <- function(input, output){
     output$mapaValenbici <- renderLeaflet(mapaValenbici)
     output$mapaEco <- renderLeaflet(mapaEco)
     
+    #--------------------------------
+    
+    #---HEX
+    
+    hexmetromapa <- readRDS("./mapas/hex_metro.RDS")
+    hexbicimapa <- readRDS("./mapas/hex_valenbisi.RDS")
+    hexBusmapa <- readRDS("./mapas/hex_bus.RDS")
+    
+    output$hexmetro <- renderLeaflet(hexmetromapa)
+    output$hexbici <- renderLeaflet(hexbicimapa)
+    output$hexBus <- renderLeaflet(hexBusmapa)
+    
+    
     #---CLUSTERS
     if (length(input$cluster) == 1){
       
       if (input$cluster == "LineasMetro") {
         
-        mapaclus <- readRDS("./mapas/cluster_barrios.rds")
+        mapaclus <- readRDS("./mapas/cluster_metros.rds")
         output$mapaCLuster <- renderLeaflet(mapaclus)
         
       }
@@ -213,7 +246,7 @@ server1 <- function(input, output){
     
     else if (length(input$cluster) == 2) {
       
-      mapaclus <- readRDS("./mapas/cluster_barrios.rds")
+      mapaclus <- readRDS("./mapas/metros_barrios_cluster.rds")
       output$mapaCLuster <- renderLeaflet(mapaclus)
     }
     
@@ -225,7 +258,7 @@ server1 <- function(input, output){
     
     
     #---DISTRITOS
-    mapadist <- readRDS("mapas/distrito_barrios.rds")
+    mapadist <- readRDS("./mapas/distrito_barrios.rds")
     output$mapaDistritos <- renderLeaflet(mapadist)
     
     #---METRO
