@@ -87,7 +87,7 @@ col <- colorNumeric(palette = "YlOrRd", domain = p2$dist_metro)
 m_metro <- leaflet() %>%
   addTiles() %>%
   addPolygons(data = p2, weight = 0.05, fillOpacity = 1, fillColor = ~col(dist_metro)) %>%
-  setView(lng = -0.377, lat = 39.468, zoom = 13)
+  setView(lng = -0.377, lat = 39.468, zoom = 12)
 m_metro
 saveRDS(m_metro, "../00_marc/app_shiny_v1/app_shiny/mapas/hex_metro.RDS")
 ```
@@ -119,7 +119,7 @@ col <- colorNumeric(palette = "YlOrRd", domain = p2$dist_valenbisi)
 m_valenbisi <- leaflet() %>%
   addTiles() %>%
   addPolygons(data = p2, weight = 0.05, fillOpacity = 1, fillColor = ~col(dist_valenbisi)) %>%
-  setView(lng = -0.377, lat = 39.468, zoom = 13)
+  setView(lng = -0.377, lat = 39.468, zoom = 12)
 m_valenbisi
 saveRDS(m_valenbisi, "../00_marc/app_shiny_v1/app_shiny/mapas/hex_valenbisi.RDS")
 ```
@@ -155,7 +155,7 @@ col <- colorNumeric(palette = "YlOrRd", domain = p2$dist_bus)
 m_bus <- leaflet() %>%
   addTiles() %>%
   addPolygons(data = p2, weight = 0.05, fillOpacity = 1, fillColor = ~col(dist_bus)) %>%
-  setView(lng = -0.377, lat = 39.468, zoom = 13)
+  setView(lng = -0.377, lat = 39.468, zoom = 12)
 m_bus
 saveRDS(m_bus, "../00_marc/app_shiny_v1/app_shiny/mapas/hex_bus.RDS")
 ```
