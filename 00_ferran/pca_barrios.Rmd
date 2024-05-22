@@ -24,7 +24,7 @@ Una vez obtenidos los distintos índices que caracterizan los barrios, vamos a p
 
 ```{r}
 info_barrios_indices <- read.csv("../00_marc/dataTratada/barrios_indices.csv")
-
+histograma <- ggplot(info_barrios_indices, aes(x = indice_ricos)) + geom_histogram(bins = 10, fill = "mediumaquamarine", color = "black") + labs(title = "Histograma de la riqueza de los barrios", x = "Índice de riqueza", y = "Frecuencia")
 info_barrios_indices[is.na(info_barrios_indices)] <- 0
 rownames(info_barrios_indices) <- info_barrios_indices$barrio
 #info_barrios_indices <- select(info_barrios_indices, -barrio)

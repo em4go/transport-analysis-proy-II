@@ -1,10 +1,8 @@
 ---
 title: "Relación de ambas caracterizaciones"
 author: "Ferran Aragó"
-date: "`r sys.Date()`"
-output:
-  html_document:
-    df_print: paged
+date: "`r Sys.Date()`"
+output:  html_document
 ---
 
 ```{r setup, include=FALSE, echo=FALSE}
@@ -113,16 +111,10 @@ En este apartado vamos a estudiar cuales son los barrios que son más cercanos a
 Para ello, vamos a agrupar nuestro dataset conjunto por barrio y a realizar una media del closeness para todas las estaciones de cada barrio. De esta forma, obtendremos un valor que nos indicará la cercanía de cada barrio respecto al resto.
 
 
-```{r}
-carac_metro_barrio_closeness <- carac_metro_barrio %>% group_by(barrio) %>%
-  summarise(closeness = mean(closeness)) %>%
-  arrange(desc(closeness))
-head(carac_metro_barrio_closeness)
-```
 
 ```{r}
 carac_metro_barrio_closeness <- carac_metro_barrio %>% group_by(barrio) %>%
-  summarise(closeness = max(closeness)) %>%
+  summarise(closeness = max(closeness)) %>% filter(!is.na(barrio)) %>%
   arrange(desc(closeness))
 head(carac_metro_barrio_closeness)
 ```
@@ -137,16 +129,10 @@ Una vez visto el barrio más céntrico, vamos a estudiar cuales son los barrios 
 
 Para esto vamos a seguir una dinámica igual a la anterior, pero en este caso vamos a utilizar la medida de intermediación (betweenneess) en lugar de la de cercanía.
 
-```{r}
-carac_metro_barrio_betweenness <- carac_metro_barrio %>% group_by(barrio) %>%
-  summarise(betweenness = mean(betweenness)) %>%
-  arrange(desc(betweenness))
-head(carac_metro_barrio_betweenness)
-```
 
 ```{r}
 carac_metro_barrio_betweenness <- carac_metro_barrio %>% group_by(barrio) %>%
-  summarise(betweenness = max(betweenness)) %>%
+  summarise(betweenness = max(betweenness)) %>% filter(!is.na(barrio)) %>%
   arrange(desc(betweenness))
 head(carac_metro_barrio_betweenness)
 ```
@@ -201,6 +187,7 @@ carac_metro_barrio_closeness_valencia <- data.frame(stop_id = V(g_valencia)$name
   merge(carac_metro_barrio[,c("stop_id", "barrio")], by = "stop_id") %>%
   group_by(barrio) %>%
   summarise(closeness = max(closeness)) %>%
+  filter(!is.na(barrio)) %>%
   arrange(desc(closeness))
 
 head(carac_metro_barrio_closeness_valencia)
@@ -213,6 +200,7 @@ carac_metro_barrio_betweenness_valencia <- data.frame(stop_id = V(g_valencia)$na
   merge(carac_metro_barrio[,c("stop_id", "barrio")], by = "stop_id") %>%
   group_by(barrio) %>%
   summarise(betweenness = max(betweenness)) %>%
+  filter(!is.na(barrio)) %>%
   arrange(desc(betweenness))
 head(carac_metro_barrio_betweenness_valencia)
 ```
@@ -234,12 +222,99 @@ carac_metro_barrio_lines <- carac_metro_barrio %>% group_by(barrio) %>%
   summarise(lines = (list(unlist(lines))))
 carac_metro_barrio_lines$n_lines <- sapply(carac_metro_barrio_lines$lines, function(x) length(unique(x)))
 carac_metro_barrio_lines <- carac_metro_barrio_lines %>% select(barrio, n_lines) %>%
+  filter(!is.na(barrio)) %>%
   arrange(desc(n_lines))
 head(carac_metro_barrio_lines)
 ```
 
 
-Viendo los resultados, se trata del barrio de La Roqueta.
+Viendo los resultados, se trata del barrio de La Roqueta. Por ello, podemos decir que este será un barrio desde el que se
+puede llegar a muchos otros barrios. Si nos fijamos en el segundo, es Arrancapins el que lo sigue, esto apoya que sea el barrio
+con una mayor intermdiación, ya que si pasan muchas líneas por él, habrá más rutas distintas que tenga que pasar por él.
+
+Respecto a esto, La Roqueta no tiene una intermediación tan alta porque es probable que todas las líneas que pasan por él sean 
+líneas que tienen rutas similares y, por ello, no sea un barrio tan importante para la red de metro como Arrancapins.
+
+
+
+## Barrios más importantes para la conectividad de la red de metro
+
+Puesto que disponemos del PageRank para cada una de las estaciones de metro, podemos utilizar este para comprobar cuales son los barrios más importantes para la conectividad de la red. Esto se debe a que esta medida de centralidad e importancia mide como de importante es una estación para la operación eficiente y resiliente de la red de metro, es decir, que estaciones son vitales para que la red funcione correctamente.
+
+Por ello, vamos a agrupar las estaciones por barrio y a tomar la medida de PageRank máxima para cada uno de ellos. Tomaremos la máxima por el hecho de que, si un barrio tiene más de una estación, al realizar el promedio puede influir de forma negativa en el PageRank final del barrio.
+
+Primero realizamos la búsqueda para la red completa y, posteriormente compararemos los resultados para la red considerando únicamente las estaciones de metro de Valencia.
+
+```{r pagerank}
+barrios_por_pagerank <- carac_metro_barrio %>% group_by(barrio) %>%
+  summarise(pagerank = max(pagerank)) %>% filter(!is.na(barrio)) %>%
+  arrange(desc(pagerank))
+head(barrios_por_pagerank)
+```
+
+Se trata del barrio de La Roqueta el que tiene un mayor PageRank, por lo que, pese a que la red tenía como centro el barrio de Arrancapins, este no es vital para que la red de metro fluya con normalidad, ya que es posible que se puedan tomar otras rutas que no pasen por este.
+
+Vamos ahora a compararlo con la red de solo Valencia.
+
+```{r pagerank_valencia}	
+pagerank_valencia <- page_rank(g_valencia)$vector
+pagerank_valencia <- data.frame(stop_id = names(pagerank_valencia),
+                                pagerank = pagerank_valencia) %>%
+  merge(carac_metro_barrio[,c("stop_id", "barrio")], by = "stop_id") %>%
+  group_by(barrio) %>%
+  summarise(pagerank = max(pagerank)) %>%
+  filter(!is.na(barrio)) %>%
+  arrange(desc(pagerank))
+head(pagerank_valencia)
+```
+
+
+En este nuevo resultado vemos que sigue siendo el barrio de La Roqueta el que tiene un mayor PageRank, pero en este caso, el resto de barrios tienen unos PageRank muy similares a este, por los que se puede decir que todos tienen una gran importancia en la red de metro si consideramos solo las estaciones situadas dentro de la ciudad de Valencia.
+
+## Barrios con mayor capacidad de transporte por hora 
+
+Vamos a comprobar cuales son los barrios que pueden mover una mayor capacidad de personas por hora. Para ello, en aquellos en los que sus estaciones tiene las mismas líneas en sus paradas, tomaremos la máxima capacidad de pasajeros por hora de todas las estaciones de metro de cada barrio, ya que si realizásemos una suma, no estaríamos tomando una medida realista, porque la gente que suba en una estación, también estará en la siguiente si no baja del metro. Por el contrario, en aquellos barrrios en los que las estaciones tienen distintas líneas, sí que realizaremos una suma de las capacidades de cada una de las estaaciones de dicho barrio.
+
+```{r capacidad_barrio}
+calcular_capacidad <- function(b, carac_metro_barrio) {
+  df <- carac_metro_barrio %>% filter(barrio == b)
+  lines <- unique(unlist(df$lines))
+  if (length(lines) == sum(length(unlist(df$lines)))) {
+    return (sum(df$capacidad_hora))
+  } else {
+    return (max(df$capacidad_hora))
+  }
+}
+
+
+barrios <- carac_metro_barrio %>% 
+  filter(!is.na(barrio)) %>% select(barrio)
+
+
+
+p <- sapply(unique(barrios$barrio), function(barrio) {calcular_capacidad(barrio, carac_metro_barrio)})
+  
+capacidad_barrio <- data.frame(capacidad = p) %>% arrange(desc(capacidad))
+
+head(capacidad_barrio)
+```
+
+
+El barrio con una mayor capacidad de transporte de pasajeros por hora es el de La Roqueta, el cual cabía esperar, porque, como se ha visto, se trata del barrio con más líneas de metro y, además, cuenta con tres paradas de metro muy importantes dentro de la red metropolitana, por lo que es necesario que tenga una gran capacidad de transporte.
+
+Por otro lado, los barrio que siguen a esta son Arrancapins y Mestalla, los cuales se corresponden, según los análisis previos, con los centros de nuestras redes de metro, Arrancapins para la red complleta y Mestalla para la red de solo las paradas de Valencia. Esto es interesante porque pone de manifiesto que las paradas de estos barrios son capaces de movilizar una gran cantidad de gente, ya que, al ser los centros, tendrán una mayor afluencia y esto será vital para evitar aglomeraciones en las estaciones.
+
+
+
+
+
+## Comparación de los clusters de barrios y paradas de metro
+
+
+
+
+
+
 
 
 
@@ -303,7 +378,9 @@ carac_metro <- carac_metro %>%
   select(-c("pagerank", "closeness", "betweenness", "eigenvector")) %>%
   cbind(aux)
 
-plot_graph <- function(dataset,color, tamanyo){
+mapa <- leaflet() %>% addTiles() #<- readRDS("../00_marc/mapas/ratio_emt.RDS")
+
+plot_graph <- function(m, dataset,color, tamanyo){
   
   library(leaflet)
     
@@ -316,7 +393,7 @@ plot_graph <- function(dataset,color, tamanyo){
     
     edge_list <- as_edgelist(subgrafo)
     
-    m = leaflet() %>% addTiles() # urlTemplate = ""
+    #m = leaflet() %>% addTiles() # urlTemplate = ""
     
       for (i in 1:nrow(edge_list)) {
         edge <- edge_list[i,]
@@ -347,9 +424,8 @@ plot_graph <- function(dataset,color, tamanyo){
 
 
 
-plot_graph(carac_metro, color = carac_metro$pagerank, tamanyo = carac_metro$eigenvector)
+plot_graph(mapa, carac_metro, color = carac_metro$pagerank, tamanyo = carac_metro$eigenvector)
 ```
-
 
 
 

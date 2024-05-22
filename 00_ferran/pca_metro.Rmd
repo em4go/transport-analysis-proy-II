@@ -21,7 +21,11 @@ knitr::opts_chunk$set(echo = TRUE)
 if (length(.lib[!.inst])>0) install.packages(.lib[!.inst])
 ```
 
-Vamos a realizar un análisis de componentes principales (PCA) con datos de las estaciones de metro de Valencia. Primero será preciso leer los datos y realizar un análisis exploratorio de los mismos.
+Vamos a realizar un análisis de componentes principales (PCA) con datos de las estaciones de metro de Valencia.
+El principal objetivo de este análisis será conocer la relación que hay entre las 
+distintas variables que se han recogido.
+
+Primero será preciso leer los datos y realizar un análisis exploratorio de los mismos.
 
 
 ```{r exploratory_analysis, message=FALSE, warning=FALSE}
@@ -193,7 +197,11 @@ fviz_pca_var(res.pca2, col.var = "cos2", repel = TRUE,
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
 ```
 
-Pasando al nuevo gráfico de variables, se observan fuertes correlaciones entre distintas variables. Empezando por las variables `neighbours_in` y `neighbours_out`, se observa que están muy relacionadas entre ellas. Esto tiene sentido, ya que, para la gran mayoría de estaciones, la dirección las estaciones con las que se conectan son las mismas en ambas direcciones, ya que el metro viaja por las mismas vías en ambos sentidos. Aún así, se encuentran algunas estaciones en las que esto no coincide, estas son:
+Pasando al nuevo gráfico de variables, se observan fuertes correlaciones entre distintas variables. Empezando por las variables `neighbours_in` y `neighbours_out`, se observa que están muy relacionadas entre ellas. Esto tiene sentido, ya que, para la gran mayoría de estaciones, la dirección de las estaciones con las que se conectan son las mismas en ambas direcciones, ya que el metro viaja por las mismas vías en ambos sentidos. Aún así, se encuentran algunas estaciones en las que esto no coincide, estas son:
+
+Siguiendo con el resto de variables, las variables de promedio de metros por hora y gente transportada por hora están también muy correlacionadas por el hecho de que la capacidad de transporte viene en función del numero de metros y tranvías que pasan por la estación, ya que, como no se disponen de los datos reales de número de gente que transita la estación, se ha multiplicado el número de metros y tranvías por la capacidad promedio de ambos. Sin embargo, hay diferencia entre ambas, ya que el número de metros recoge la cantidad promedio de metros o tranvías que pasan por hora sin diferenciar, mientras que la capacidad si que diferencia entre si el transporte es metro o tranvía, ya que no tienen la misma capacidad.
+
+Pasando ahora a las variables que no tienen dependencias entre ellas, se observa una fuerte correlación positiva multidimensional entre las variables mencionadas anteriormente, sobre cantidad de metros y personas y el closeness, que indica si la estación permite llegar al resto de estaciones con una menor distancia, y el número de líneas. Esto tiene sentido, ya que resulta lógico que las estaciones más centrales de la red tenga una mayor tránsito de metros y, por tanto, pasen más líneas distintas por ellas.
 
 ```{r}
 library(kableExtra)
@@ -201,9 +209,7 @@ kable(carac_metro[which(carac_metro$neighbours_in != carac_metro$neighbours_out)
                   c("stop_name", "neighbours_in", "neighbours_out")])
 ```
 
-Siguiendo con el resto de variables, las variables de promedio de metros por hora y gente transportada por hora están también muy correlacionadas por el hecho de que la capacidad de transporte viene en función del numero de metros y tranvías que pasan por la estación, ya que, como no se disponen de los datos reales de número de gente que transita la estación, se ha multiplicado el número de metros y tranvías por la capacidad promedio de ambos. Sin embargo, hay diferencia entre ambas, ya que el número de metros recoge la cantidad promedio de metros o tranvías que pasan por hora sin diferenciar, mientras que la capacidad si que diferencia entre si el transporte es metro o tranvía, ya que no tienen la misma capacidad.
 
-Pasando ahora a las variables que no tienen dependencias entre ellas, se observa una fuerte correlación positiva multidimensional entre las variables mencionadas anteriormente, sobre cantidad de metros y personas y el closeness, que indica si la estación permite llegar al resto de estaciones con una menor distancia, y el número de líneas. Esto tiene sentido, ya que resulta lógico que las estaciones más centrales de la red tenga una mayor tránsito de metros y, por tanto, pasen más líneas distintas por ellas.
 
 
 ## Gráfico de individuos
@@ -213,7 +219,11 @@ fviz_pca_ind(res.pca2, label=FALSE, col.ind="cos2",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
 ```
 
-
+Por lo que respecta a las propias estaciones, se observa que la principal 
+característica que diferencia entre unas y otras es el número de estaciones 
+que se alcanzan directamente desde la estación en cuestión. Dentro de estos 
+grupos, ya aparecen variables con mayor número de líneas, mayor capacidad de 
+transporte de personas por hora y mayor número de metros por hora.
 
 
 ```{r}

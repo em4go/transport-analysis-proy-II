@@ -76,7 +76,7 @@ m_emt <- leaflet() %>%
   addPolygons(data = df_superficie, fillColor = ~colors_emt(paradas_emt),
               fillOpacity = 1, weight = 0.5, color = "black",
               popup = ~paste(barrio, "<br>", "Paradas de bus por m2: ", round(paradas_emt,8))) %>%
-  setView(lng = -0.377, lat = 39.465, zoom = 12)
+  setView(lng = -0.377, lat = 39.465, zoom = 13)
 m_emt
 
              
@@ -167,6 +167,8 @@ saveRDS(m_eco, file = "../00_marc/mapas/ratio_eco.rds")'
 
 ```{r}
 library(igraph)
+library(mapview)
+library(webshot)
 establecer_barrio<- function(punto, info_poligonos) {
   # Recibe un objeto de tipo punto y un dataframe con la información de los polígonos y el barrio
   b <- unlist(st_within(punto, info_poligonos$geometry))
@@ -190,6 +192,7 @@ estaciones$barrio <- sapply(1:nrow(estaciones), function(i) {
 })
 
 carac_metro <- merge(carac_metro, estaciones[,c("stop_id", "barrio")], by = "stop_id", all.x = TRUE)
+write.csv2(carac_metro, "./carac_metro_barrio.csv", row.names = FALSE)
 
 barrios <- read.csv("../00_marc/dataTratada/barrios_indices.csv")
 barrios[is.na(barrios)] <- 0
@@ -258,7 +261,7 @@ plot_graph <- function(m, dataset,color, tamanyo){
   mapa <- plot_isochron(g)
   
   mapa <- mapa %>%
-    addCircleMarkers(data = b, color = ~colors(color), radius = ~((tamanyo^2)*5) + 3, fillOpacity = 1,
+    addCircleMarkers(data = b, color = ~colors(color), radius = ~(tamanyo^1.3)+3, fillOpacity = 1,
                      popup = ~paste(stop_name))
   
   
@@ -267,6 +270,8 @@ plot_graph <- function(m, dataset,color, tamanyo){
 
 
 
-plot_graph(m_emt, carac_metro, color = carac_metro$closeness, tamanyo = carac_metro$betweenness)
+m <- plot_graph(m_emt, carac_metro, color = carac_metro$closeness, tamanyo = carac_metro$n_lines)
+mapshot(m, file = "emt_closeness_n_lines.png")
+m
 ```
 

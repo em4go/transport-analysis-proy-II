@@ -1,0 +1,191 @@
+---
+title: "Hexagonos"
+author: "Ferran Aragó"
+date: "2024-05-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Paradas de metro
+
+```{r}
+library(sf)
+library(geojsonsf)
+library(leaflet)
+library(h3jsr)
+library(arrow)
+library(igraph)
+library(dplyr)
+
+valenbisi <- read.csv2("estaciones_valenbisi.csv")
+valenbisi <- st_as_sf(cbind(valenbisi, geojson_sf(valenbisi$geo_shape)))
+
+df <- read_parquet("../data/info_general_barrio.parquet")
+metros <- read.csv2("./carac_metro_barrio.csv")
+a <- cbind(barrio = df$barrio, geojson_sf(df$geo_shape))
+df_superficie <- merge(a, df, by = "barrio", all.y=TRUE)
+
+grafo <- read_graph("../data/networks_data/valencia_walk.graphml", format = "graphml")
+V(grafo)$y <- as.numeric(V(grafo)$y)
+V(grafo)$x <- as.numeric(V(grafo)$x)
+
+metros <- metros[!is.na(metros$barrio),]
+
+#load("graph_metro_valencia.RData")
+#g_valencia <- induced_subgraph(g, V(g)$name %in% carac_metro_barrio$stop_id[!is.na(carac_metro_barrio$barrio)])
+
+find_nearest_node <- function(graph, x_given, y_given) {
+  dist <- sqrt((V(grafo)$y - y_given)^2 + (V(grafo)$x - x_given)^2)
+  nearest_node_index <- as.numeric(which.min(dist))
+  
+  return(V(graph)[nearest_node_index])
+}
+
+paradas_walk <- data.frame(stop_id = character(), node_id = numeric(), node_x = numeric(), node_y = numeric())
+
+for (i in 1:nrow(metros)) {
+  stop <- metros[i,]
+  punto_mas_cercano <- find_nearest_node(grafo, stop$stop_lon, stop$stop_lat)
+  paradas_walk <- rbind(paradas_walk, data.frame(stop_id = stop$stop_id, node_id = punto_mas_cercano$id, node_x = punto_mas_cercano$x, node_y = punto_mas_cercano$y))
+}
+
+
+
+distancia_euclidea <- function(graph, df_paradas, punto) {
+  p <- st_coordinates(punto)
+  dist <- sqrt((df_paradas$node_y - p[2])^2 + (df_paradas$node_x - p[1])^2)
+  return(min(dist))
+}
+
+
+
+poligon_enter <- df_superficie %>%  group_by() %>%
+  summarise(geometry = sf::st_union(geometry)) %>%
+  ungroup()
+
+hex <- polygon_to_cells(poligon_enter$geometry, 10)
+
+p <- cell_to_polygon(hex)
+
+p2 <- st_as_sf(p, crs = 4326)
+centros <- st_centroid(p2)
+
+dist <- c()
+
+for (i in 1:nrow(centros)) {
+  centro <- centros[i,]
+  d <- distancia_euclidea(grafo, paradas_walk, centro)
+  dist <- c(dist, d)
+}
+
+p2$dist_metro <- sqrt(dist)
+col <- colorNumeric(palette = "YlOrRd", domain = p2$dist_metro)
+
+m_metro <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = p2, weight = 0.05, fillOpacity = 1, fillColor = ~col(dist_metro)) %>%
+  setView(lng = -0.377, lat = 39.468, zoom = 13)
+m_metro
+saveRDS(m_metro, "../00_marc/app_shiny_v1/app_shiny/mapas/hex_metro.RDS")
+```
+
+
+## Valenbisi
+
+```{r}
+paradas_walk <- data.frame(node_id = numeric(), node_x = numeric(), node_y = numeric())
+
+for (i in 1:nrow(valenbisi)) {
+  stop <- st_coordinates(valenbisi[i,]$geometry)
+  punto_mas_cercano <- find_nearest_node(grafo, stop[1], stop[2])
+  paradas_walk <- rbind(paradas_walk, data.frame(node_id = punto_mas_cercano$id, node_x = punto_mas_cercano$x, node_y = punto_mas_cercano$y))
+}
+
+
+dist <- c()
+
+for (i in 1:nrow(centros)) {
+  centro <- centros[i,]
+  d <- distancia_euclidea(grafo, paradas_walk, centro)
+  dist <- c(dist, d)
+}
+
+p2$dist_valenbisi <- sqrt(dist)
+col <- colorNumeric(palette = "YlOrRd", domain = p2$dist_valenbisi)
+
+m_valenbisi <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = p2, weight = 0.05, fillOpacity = 1, fillColor = ~col(dist_valenbisi)) %>%
+  setView(lng = -0.377, lat = 39.468, zoom = 13)
+m_valenbisi
+saveRDS(m_valenbisi, "../00_marc/app_shiny_v1/app_shiny/mapas/hex_valenbisi.RDS")
+```
+
+
+
+## Paradas de bus
+
+```{r}
+library(tidytransit)
+bus <- read_gtfs("../data/gtfs_data/transit_emt_valencia.zip")
+
+valenbisi_walk <- data.frame(node_id = numeric(), node_x = numeric(), node_y = numeric())
+
+for (i in 1:nrow(bus$stops)) {
+  stop <- bus$stops[i,]
+  punto_mas_cercano <- find_nearest_node(grafo, stop$stop_lon, stop$stop_lat)
+  paradas_walk <- rbind(paradas_walk, data.frame(node_id = punto_mas_cercano$id, node_x = punto_mas_cercano$x, node_y = punto_mas_cercano$y))
+}
+
+
+dist <- c()
+
+for (i in 1:nrow(centros)) {
+  centro <- centros[i,]
+  d <- distancia_euclidea(grafo, paradas_walk, centro)
+  dist <- c(dist, d)
+}
+
+p2$dist_bus <- sqrt(dist)
+col <- colorNumeric(palette = "YlOrRd", domain = p2$dist_bus)
+
+m_bus <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = p2, weight = 0.05, fillOpacity = 1, fillColor = ~col(dist_bus)) %>%
+  setView(lng = -0.377, lat = 39.468, zoom = 13)
+m_bus
+saveRDS(m_bus, "../00_marc/app_shiny_v1/app_shiny/mapas/hex_bus.RDS")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
