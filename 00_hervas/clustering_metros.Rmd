@@ -28,6 +28,7 @@ library(sf)
 library(leaflet)
 library(kableExtra)
 library(dplyr)
+library(igraph)
 ```
 
 # CLUSTERING DE BARRIOS
@@ -166,7 +167,7 @@ Para la elección del número de clusters, combinaremos el análisis del coefici
 
 ## Modelos jerárquicos
 
-Se han probado todo los modelos jerárquicos disponibles en R, (single,complete,average y ward), y pese a que todos mostrabn resultados aceptables, hemos seleccionado los 2 más completos. Por lo que solo mostraremos los resultados de los métodos Ward y Complete.
+Se han probado todo los modelos jerárquicos disponibles en R, (single,complete,average y ward), y pese a que todos mostraban resultados aceptables, hemos seleccionado los 2 más completos. Por lo que solo mostraremos los resultados de los métodos Ward y Complete.
 
 ### Ward
 
@@ -441,24 +442,52 @@ dataMetros3$cluster <- ward6
 data_geo<-read_parquet("../data/info_general_barrio.parquet")
 
 valencia<- geojson_sf(data_geo$geo_shape)
+load("../00_ferran/graph_metro_valencia.RData")
+```
+
+
+```{r}
+
+
+plot_graph <- function(m, metros, color1){
+  
+    color_metro <- colorFactor(palette =c("red","yellow","green","lightblue","blue3","purple1"), domain = color1)
+    
+    plot_isochron <- function(subgrafo) {
+    
+    edge_list <- as_edgelist(subgrafo)
+    
+    #m = leaflet() %>% addTiles() # urlTemplate = ""
+    
+      for (i in 1:nrow(edge_list)) {
+        edge <- edge_list[i,]
+        head_edge <- V(subgrafo)[edge[1]]
+        tail_edge <- V(subgrafo)[edge[2]]
+        
+        m <- m %>%
+          addPolylines(lng = c(head_edge$lon, tail_edge$lon), lat = c(head_edge$lat, tail_edge$lat),
+                       color = "#35434c", weight = 2, opacity = 0.9)
+      }
+      
+      # add nodes to map
+      #m <- m %>% addCircleMarkers(lng = V(subgrafo)$lon, lat = V(subgrafo)$lat, radius = 5, color = "red")
+      #m <- m %>% addCircleMarkers(lng = start_node$x, lat = start_node$y, radius = 5, color = "yellow")
+      return(m)
+    }
+  
+  
+  mapa <- plot_isochron(g)
+  mapa<-mapa %>% addCircleMarkers(data =metros , lng = ~stop_lon, lat = ~stop_lat,  radius=5,color=~color_metro(cluster), fillOpacity =1, popup=metros$stop_name ) 
+  mapa
+}
 ```
 
 ```{r}
-mapa_valencia <- leaflet() %>%
-  setView(lng = -0.375, lat = 39.4667, zoom = 12) %>%
-  addTiles()
-
-
-palette <- colorFactor(palette =c("red","yellow","green","lightblue","blue3","purple1"), domain = dataMetros3$cluster)
-
-mapa_valencia <- mapa_valencia %>%
-  addCircleMarkers(data =dataMetros3 , lng = ~stop_lon, lat = ~stop_lat, popup=rownames(dataMetros), radius=5,color=~palette(cluster), fillOpacity =1) %>%
-  addPolygons(data = valencia, fillColor = "transparent", weight = 1, color = "black")
- 
-
-
-
-mapa_valencia
+m2 <- leaflet() %>%addProviderTiles(providers$CartoDB.Positron)  %>% setView(lng = -0.375, lat = 39.4667, zoom = 12)
+m2 <- m2 %>%
+  addPolygons(data = valencia, fillColor = "transparent", weight = 2, color = "#2F4F4F",dashArray = "3, 7")
+m2 <- plot_graph(m2, dataMetros3, dataMetros3$cluster)
+m2
 ```
 
 Al observar las paradas de metro en el mapa de Valencia, podemos observar que el las paradas del cluster verde, que tenian valores bajos en todas las variables, se encuentran en su mayoria fuera de la ciudad de Valencia, y suelen ser paradas de fin de linea, lo que explica su bajo número de conexiones asi como importancia en la red.
@@ -469,7 +498,11 @@ El cluster azul oscuro, que presenta valores altos en todas las variables, pero 
 Por últimos, las paradas del cluster morado, que presentan valores altos en todas las variables, observamos que no son tan centrales como las del cluster anterior pero siguen siendolo, y a diferencia de estos, están mucho más conectadas y son los nodos más importantes en la red, ya que son los nodos donde se cruzan más líneas.
 
 ```{r}
-write_parquet(dataMetros3, "cluster_metro.parquet")
+saveRDS(m2, "../00_marc/app_shiny_v1/app_shiny/mapas/cluster_metros.rds")
+```
+
+```{r}
+#write_parquet(dataMetros3, "cluster_metro.parquet")
 ```
 
 

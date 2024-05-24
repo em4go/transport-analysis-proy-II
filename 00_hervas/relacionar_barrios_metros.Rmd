@@ -19,6 +19,11 @@ library(sf)
 library(dplyr)
 library(geojsonsf)
 library(arrow)
+library(igraph)
+library(FactoMineR)
+library(factoextra)
+library(corrplot)
+library(kableExtra)
 ```
 
 Para poder observar si existe relación entre los tipos de paradas de metro y las distintas agrupaciones de barrios, se ha realizado un mapa en el que se muestran los barrios de Valencia coloreados por el cluster al que pertenecen y superpuesto a estos, las paradas de metro coloreados según su cluster.
@@ -26,26 +31,74 @@ Para poder observar si existe relación entre los tipos de paradas de metro y la
 ```{r}
 dataMetros<-read_parquet("cluster_metro.parquet")
 dataBarrios<-read_parquet("cluster_barrios.parquet")
-data_geo<-read_parquet("../data/info_general_barrio.parquet")
+data_geo<-read_parquet("../data/info_general_barrio_final.parquet")
 
 dataBarrios<-st_as_sf(cbind(dataBarrios, geojson_sf(data_geo$geo_shape)))
+rownames(dataBarrios)<-data_geo$barrio
+```
+
+```{r}
+load("../00_ferran/graph_metro_valencia.RData")
 ```
 
 ```{r}
 color_barrio <- colorFactor(palette =c("#f5587b", "#f0f696","#66ddaa","#2f89fc", "#a56cc1") , domain = dataBarrios$cluster)
 
-color_metro <- colorFactor(palette =c("red","yellow","green","lightblue","blue3","purple1"), domain = dataMetros$cluster)
+
 
 
 m <- leaflet() %>%
-  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron)  %>%
   setView(lng = -0.3763, lat = 39.4699, zoom = 12) %>%
-  addPolygons(data = dataBarrios, fillColor = ~color_barrio(cluster), fillOpacity = 1, weight = 0.5, color = "black") %>%
-addCircleMarkers(data =dataMetros , lng = ~stop_lon, lat = ~stop_lat,  radius=5,color=~color_metro(cluster), fillOpacity =1, popup=dataMetros$stop_name ) 
+  addPolygons(data = dataBarrios, fillColor = ~color_barrio(cluster), fillOpacity = 1, weight = 0.5, color = "black", popup = rownames(dataBarrios)) 
  
-m
 
 ```
+
+```{r}
+
+
+plot_graph <- function(m, metros, color1){
+  
+    color_metro <- colorFactor(palette =c("red","yellow","green","lightblue","blue3","purple1"), domain = color1)
+    
+    plot_isochron <- function(subgrafo) {
+    
+    edge_list <- as_edgelist(subgrafo)
+    
+    #m = leaflet() %>% addTiles() # urlTemplate = ""
+    
+      for (i in 1:nrow(edge_list)) {
+        edge <- edge_list[i,]
+        head_edge <- V(subgrafo)[edge[1]]
+        tail_edge <- V(subgrafo)[edge[2]]
+        
+        m <- m %>%
+          addPolylines(lng = c(head_edge$lon, tail_edge$lon), lat = c(head_edge$lat, tail_edge$lat),
+                       color = "#35434c", weight = 2, opacity = 0.9)
+      }
+      
+      # add nodes to map
+      #m <- m %>% addCircleMarkers(lng = V(subgrafo)$lon, lat = V(subgrafo)$lat, radius = 5, color = "red")
+      #m <- m %>% addCircleMarkers(lng = start_node$x, lat = start_node$y, radius = 5, color = "yellow")
+      return(m)
+    }
+  
+  
+  mapa <- plot_isochron(g)
+  mapa<-mapa %>% addCircleMarkers(data =metros , lng = ~stop_lon, lat = ~stop_lat,  radius=5,color=~color_metro(cluster), fillOpacity =1, popup=metros$stop_name ) 
+  mapa
+}
+```
+
+```{r}
+m4 <- plot_graph(m, dataMetros, dataMetros$cluster)
+m4
+```
+
+
+
+
 
 Del siguiente gráfico podemos sacar una serie de conclusiones:
 Primeramente, los barrios del cluster verde, no tienen apenas paradas de metro a comparación del resto de barrios, y las paradas que caen en estos barrios se encuentran en las frontera de estos con otro barrio. Además, las paradas de estos barrios son del cluster verde y amarillo, es decir, los menos importantes y centrales dentro de la red.
@@ -60,6 +113,126 @@ En conclusion, mejores zonas en cuanto a movilidad en el transporte metropolitan
 Las peores zonas en cuanto a movilidad en el transporte metropolitano son los barrios del cluster verde, ya que no cuentan con pocas paradas de metro y que otorgan escasa movilidad y poco centrales.
 
 ```{r}
-saveRDS(m, file = "../00_marc/mapas/metros_barrios_cluster.rds")
+saveRDS(m4, file = "../00_marc/app_shiny_v1/app_shiny/mapas/metros_barrios_cluster.rds")
 ```
 
+
+```{r}
+obtener_poligonos <- function(df){
+  polygons <- lapply(df$geo_shape, function(x) st_read(x, quiet = TRUE))
+  
+  # Combina todos los objetos sf en un solo objeto sf
+  polygons_barrios <- do.call(rbind, polygons)
+  
+  polygons_barrios$Nombre <- df$barrio
+  return(polygons_barrios)
+}
+
+poligonos_barrios<-obtener_poligonos(data_geo)
+```
+
+```{r}
+cl <- data.frame()
+for (pt in 1:nrow(dataMetros)) {
+  point <- st_point(c(as.numeric(dataMetros$stop_lon[pt]), as.numeric(dataMetros$stop_lat[pt])), dim = "XY")
+  #longitud y latitud porque los poligonos de los barrios estan en ese orden
+  b <- unlist(st_within(point, poligonos_barrios$geometry)) 
+  
+  if (length(b) > 0) {
+    cl <- rbind(cl, data.frame(
+      barrio = poligonos_barrios$Nombre[b], cluster_barrio = dataBarrios$cluster[b]
+    ))
+  } else {
+    cl <- rbind(cl, data.frame(
+      barrio = 'OTRO', cluster_barrio =0
+    ))
+  }
+}
+```
+
+```{r}
+dataMetros$cluster_barrio<-cl$cluster_barrio
+
+d <- dataMetros %>%
+  filter(cluster_barrio != 0) %>%
+  select(cluster, cluster_barrio) 
+```
+
+
+```{r}
+# Crear la tabla de contingencia
+afc <- table(d$cluster, d$cluster_barrio)
+print(afc)
+```
+
+```{r matrices}
+# Frecuencias relativas
+miF = afc/sum(afc); round(miF, 4)
+# Frecuencias marginales de filas
+margFilas = rowSums(miF); margFilas
+# Frecuencias marginales de columnas
+margCols = colSums(miF); margCols
+# Frecuencias condicionadas a filas (matriz R)
+condFilas = miF/margFilas; round(condFilas, 4)  
+# Frecuencias condicionadas a columnas (matriz C)
+condCols = t(t(miF)/margCols); round(condCols, 4)  
+```
+
+```{r}
+# Realizar el test de Chi-Cuadrado
+chi2_test <- chisq.test(afc)
+
+# Ver los resultados del test
+print(chi2_test)
+
+```
+
+```{r}
+res.afc = CA(afc, graph = FALSE)
+eig.val <- get_eigenvalue(res.afc)
+Vmedia = 100 * (1/nrow(eig.val))
+fviz_eig(res.afc, addlabels = TRUE) +
+  geom_hline(yintercept=Vmedia, linetype=2, color="red")
+```
+```{r}
+res.afc = CA(afc, graph = FALSE, ncp = 3)
+```
+
+
+```{r filas1, fig.width=5, fig.height=5}
+# Gráfico de filas
+fviz_ca_row(res.afc, axes = c(1,2), repel = TRUE, col.row = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+```
+```{r filas1, fig.width=5, fig.height=5}
+# Gráfico de filas
+fviz_ca_row(res.afc, axes = c(2,3), repel = TRUE, col.row = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+```
+
+```{r columnas1, fig.width=5, fig.height=5}
+fviz_ca_col(res.afc, axes = c(1,2), repel = TRUE, col.col = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+```
+
+```{r columnas1, fig.width=5, fig.height=5}
+fviz_ca_col(res.afc, axes = c(2,3), repel = TRUE, col.col = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+```
+
+```{r biplot2, fig.width=5, fig.height=5}
+# Asimetrico: Columnas representadas en espacio de las filas
+fviz_ca_biplot(res.afc, map ="rowprincipal", repel = TRUE) 
+```
+
+```{r biplot3, fig.width=7, fig.height=7}
+#añadir una leyenda al grafico
+fviz_ca_biplot(res.afc, 
+               map = "colprincipal", 
+               repel = TRUE, 
+               col.row = "blue",   # Color para las filas
+               col.col = "red") +  # Color para las columnas
+  scale_color_manual(values = c("blue" = "Filas", "red" = "Columnas"), 
+                     labels = c("Filas", "Columnas")) +
+  theme(legend.title = element_blank()) 
+```
