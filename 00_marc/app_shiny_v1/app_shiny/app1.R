@@ -113,7 +113,7 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                            mainPanel(
                              h1("MAPA DE CLUSTERS"),
                              
-                             leafletOutput("mapaCLuster", height = 700),
+                             leafletOutput("mapaCLuster", height = 700)
                              ),
                            
                            
@@ -122,7 +122,7 @@ ui <- fluidPage(theme = shinytheme("yeti"),
                              
                              checkboxGroupInput("cluster",
                                                  label = "Selecciona el cluster para mostrar:",
-                                                 choices = list("Lineas Metro" = "LineasMetro", "Caracterización" = "Caracterización")
+                                                 choices = list("LineasMetro" = "LineasMetro", "Caracterización" = "Caracterización")
                              ),
                              
                              leafletOutput("mapaDistritos", height = 400)),
