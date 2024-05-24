@@ -181,6 +181,9 @@ gtfs$trips %>%
   arrange(desc(frequency))
 ```
 
+Los fines de semana (100 y 200) son los servicios con menos trenes. Hay casi la mitad de trenes que entre semana, con lo que la frecuencia de paso de los trenes es mucho menor.
+
+
 Observemos también cuáles son las rutas más frecuentes:
 
 ```{r}
@@ -260,13 +263,14 @@ Se van a dividir los horarios según la franja horaria del día, de forma que se
 ```{r}
 stop_times <- gtfs$stop_times %>%
   inner_join(gtfs$stops, by = "stop_id") %>%
-  inner_join(trips, by = "trip_id") # aquí ya se incluye el filtro anterior del service_id
+  inner_join(gtfs$trips, by = "trip_id")
 ```
 
 Vamos a ver el número de metros por hora.
 
 ```{r}
 metros_por_hora <- stop_times %>%
+  filter(service_id == "2516") %>%
   group_by(hour = hour(arrival_time)) %>%
   summarise(n_metros = n()) %>%
   arrange(hour)
@@ -280,13 +284,62 @@ En un gráfico de barras se puede ver mejor la distribución de metros por hora.
 ```{r}
 ggplot(metros_por_hora, aes(x = hour, y = n_metros)) +
   geom_bar(stat = "identity", fill="mediumaquamarine") +
-  labs(title = "Número de metros por hora",
+  labs(title = "Número de metros por hora entre semana",
        x = "Hora",
        y = "Número de metros")+
   theme_minimal()
 ```
 
 Se puede ver que desde 7 de la mañana hasta las 21 horas el servicio es más frecuente y el número de metros es similar para todas las horas intermedias, siendo las 8, 14 y 15 las horas con más frecuencia de metros. Esto probablemente se deba a la entrada y salida del trabajo y la hora de comer.
+
+Ahora vamos a ver si esta distribución se corresponde también con los servicios de sábado (100) y domingo (200)
+
+```{r}
+metros_por_hora_sabado <- stop_times %>%
+  filter(service_id == "100") %>%
+  group_by(hour = hour(arrival_time)) %>%
+  summarise(n_metros = n()) %>%
+  arrange(hour)
+
+metros_por_hora_domingo <- stop_times %>%
+  filter(service_id == "200") %>%
+  group_by(hour = hour(arrival_time)) %>%
+  summarise(n_metros = n()) %>%
+  arrange(hour)
+```
+
+```{r}
+ggplot(metros_por_hora_sabado, aes(x = hour, y = n_metros)) +
+  geom_bar(stat = "identity", fill="mediumaquamarine") +
+  labs(title = "Número de metros por hora en sábado",
+       x = "Hora",
+       y = "Número de metros")+
+  theme_minimal()
+```
+
+```{r}
+ggplot(metros_por_hora_domingo, aes(x = hour, y = n_metros)) +
+  geom_bar(stat = "identity", fill="mediumaquamarine") +
+  labs(title = "Número de metros por hora en domingo",
+       x = "Hora",
+       y = "Número de metros")+
+  theme_minimal()
+```
+
+Durante el fin de semana, el servicio es menos frecuente ya que el servicio comienza más tarde y termina sobre la misma hora que entre semana. Además, el número de metros es más constante durante el día, sin distinguir las horas punta.
+
+
+Vamos a ver el número de metros por hora.
+
+```{r}
+metros_por_hora <- stop_times %>%
+  group_by(hour = hour(arrival_time)) %>%
+  summarise(n_metros = n()) %>%
+  arrange(hour)
+
+metros_por_hora
+```
+
 
 ### Análisis por franjas horarias
 
