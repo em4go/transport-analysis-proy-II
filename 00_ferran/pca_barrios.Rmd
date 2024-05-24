@@ -39,7 +39,7 @@ Vamos a proceder a analizar cual será el número de variables que tomemos para 
 
 
 ```{r}
-res.pca <- PCA(data_pca, graph = FALSE, ncp = Inf, quali.sup = "Distrito", 
+res.pca <- PCA(data_pca, graph = FALSE, ncp = Inf, quali.sup = "Distrito", scale.unit = TRUE,
                quanti.sup = c("Universidad", "Hospitales", "Estadio", "Cargadores"))
 
 eig.val <- get_eigenvalue(res.pca)
@@ -238,7 +238,7 @@ Proseguimos con el gráfico entre las componentes 2 y 3, en este encontramos dos
 
 
 
-```{r, include=FALSE}
+```{r}
 fviz_pca_ind(res.pca, habillage = "Distrito", label = F, title = "Individuos", axes = c(1,2))
 ```
 

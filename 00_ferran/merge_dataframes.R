@@ -138,4 +138,5 @@ valenba_barrio <- valenba_barrio %>% select(-geometry)
 colnames(valenba_barrio) <- c("barrio", "metros_carril_bici", "estaciones_valenbisi", "geo_shape")
 
 write_parquet(valenba_barrio, "data/valenbisi_barrio.parquet")
+write.csv(valenba_barrio, "data/valenbisi_barrio.parquet")
 

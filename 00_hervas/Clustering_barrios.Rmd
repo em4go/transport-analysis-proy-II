@@ -533,26 +533,9 @@ Para finalizar y observar si tiene relación la geolocalización de los barrios 
 
 colors_cluster <- colorFactor(palette =c("#f5587b", "#f0f696","#66ddaa","#2f89fc", "#a56cc1") , domain = dataBarrios3$cluster)
 
-# Calcular los centroides de los polígonos
-centroides <- lapply(dataBarrios3$geometry, function(poly) {
-  centro <- st_centroid(poly)
-  return(c(x = st_coordinates(centro)[1], y = st_coordinates(centro)[2]))
-})
 
-# Crear un dataframe con los centroides
-centroides2 <- data.frame(lon = sapply(centroides, "[[", "x"),
-                             lat = sapply(centroides, "[[", "y"))
-
-centroides3<-centroides2[dataBarrios3$Especial==1,]
-lista_iconos <- icons(iconUrl = 'https://cdn.icon-icons.com/icons2/3002/PNG/512/pushpin_icon_187849.png', iconWidth = c(20), iconHeight = c(20))
-m2 <- leaflet() %>%
-  addTiles() %>%
-  addPolygons(data = dataBarrios3, fillColor = ~colors_cluster(cluster), fillOpacity = 1, weight = 0.5, color = "black",
-              popup = rownames(dataBarrios3)) %>%
-  addMarkers(data = centroides3, popup = rownames(dataBarrios3), icon=lista_iconos)
-m2
-m <- leaflet() %>%
-  addTiles() %>%
+m <- leaflet() %>% setView(lng = -0.376805, lat = 39.469907, zoom = 12) %>%
+  addProviderTiles(providers$CartoDB.Positron)  %>%
   addPolygons(data = dataBarrios3, fillColor = ~colors_cluster(cluster), fillOpacity = 1, weight = 0.5, color = "black",
               popup = rownames(dataBarrios3))
 
@@ -570,8 +553,8 @@ Por último, el resto de barrios que se encuentran en la zona intermedia de la c
 ```{r}
 colors_cluster <- colorFactor(palette =rainbow(19) , domain = dataBarrios$Distrito)
 
-m3 <- leaflet() %>%
-  addTiles() %>%
+m3 <- leaflet() %>% setView(lng = -0.376805, lat = 39.469907, zoom = 12) %>%
+  addProviderTiles(providers$CartoDB.Positron)  %>%
   addPolygons(data = dataBarrios3, fillColor = ~colors_cluster(dataBarrios$Distrito), fillOpacity = 1, weight = 0.5, color = "black",
               popup = rownames(dataBarrios3))
 
@@ -580,14 +563,14 @@ m3
 
 
 ```{r}
-#saveRDS(m, file = "../00_marc/mapas/cluster_barrios.rds")
-#saveRDS(m2, file = "../00_marc/mapas/distrito_barrios.rds")
+saveRDS(m, file = "../00_marc/app_shiny_v1/app_shiny/mapas/cluster_barrios.rds")
+saveRDS(m3, file = "../00_marc/app_shiny_v1/app_shiny/mapas/distrito_barrios.rds")
 ```
 
 
 ```{r}
 dataBarrios4<-st_drop_geometry(dataBarrios3)
-write_parquet(dataBarrios4, "cluster_barrios.parquet")
+#write_parquet(dataBarrios4, "cluster_barrios.parquet")
 
 ```
 

@@ -226,7 +226,8 @@ p <- df_numerico %>% apply(2, function(x) x / df_numerico$superficie_barrio)
 p <- data.frame(p) %>% select(-superficie_barrio)
 
 df_final_sup <- cbind(barrio = df_final$barrio, p, distrito = df_final$distrito,
-                  superficie_barrio = df_final$superficie_barrio, precio_alquiler = df_final$precio_alquiler)
+                  superficie_barrio = df_final$superficie_barrio, precio_alquiler = df_final$precio_alquiler,
+                  geo_shape = df_final$geo_shape)
 ```
 
 
@@ -246,8 +247,7 @@ write_parquet(df_final_sup, "../data/info_general_barrio_final.parquet")
 write.csv(df_final_sup, "../data/info_general_barrio_final.csv")
 
 
-write_parquet(df_final, "../data/info_general_barrio.parquet")
-write.csv(df_final, "../data/info_general_barrio.csv")
+
 summary(df_final_sup)
 ```
 

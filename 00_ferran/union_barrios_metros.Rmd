@@ -273,7 +273,7 @@ En este nuevo resultado vemos que sigue siendo el barrio de La Roqueta el que ti
 
 ## Barrios con mayor capacidad de transporte por hora 
 
-Vamos a comprobar cuales son los barrios que pueden mover una mayor capacidad de personas por hora. Para ello, en aquellos en los que sus estaciones tiene las mismas líneas en sus paradas, tomaremos la máxima capacidad de pasajeros por hora de todas las estaciones de metro de cada barrio, ya que si realizásemos una suma, no estaríamos tomando una medida realista, porque la gente que suba en una estación, también estará en la siguiente si no baja del metro. Por el contrario, en aquellos barrrios en los que las estaciones tienen distintas líneas, sí que realizaremos una suma de las capacidades de cada una de las estaaciones de dicho barrio.
+Vamos a comprobar cuales son los barrios que pueden mover una mayor capacidad de personas por hora. Para ello, en aquellos en los que sus estaciones tiene las mismas líneas en sus paradas, tomaremos la máxima capacidad de pasajeros por hora de todas las estaciones de metro de cada barrio, ya que si realizásemos una suma, no estaríamos tomando una medida realista, porque la gente que suba en una estación, también estará en la siguiente si no baja del metro. Por el contrario, en aquellos barrios en los que las estaciones tienen distintas líneas, sí que realizaremos una suma de las capacidades de cada una de las estaciones de dicho barrio.
 
 ```{r capacidad_barrio}
 calcular_capacidad <- function(b, carac_metro_barrio) {
