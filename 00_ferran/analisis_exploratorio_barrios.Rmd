@@ -246,8 +246,7 @@ write_parquet(df_final_sup, "../data/info_general_barrio_final.parquet")
 write.csv(df_final_sup, "../data/info_general_barrio_final.csv")
 
 
-write_parquet(df_final, "../data/info_general_barrio.parquet")
-write.csv(df_final, "../data/info_general_barrio.csv")
+
 summary(df_final_sup)
 ```
 
