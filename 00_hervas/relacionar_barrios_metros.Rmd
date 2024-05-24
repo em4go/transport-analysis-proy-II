@@ -180,7 +180,7 @@ condCols = t(t(miF)/margCols); round(condCols, 4)
 
 ```{r}
 # Realizar el test de Chi-Cuadrado
-chi2_test <- chisq.test(afc)
+chi2_test <- chisq.test(afc, simulate.p.value = TRUE)
 
 # Ver los resultados del test
 print(chi2_test)
