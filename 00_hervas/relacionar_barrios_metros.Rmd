@@ -26,8 +26,12 @@ library(corrplot)
 library(kableExtra)
 ```
 
+# MAPA
+
 Para poder observar si existe relación entre los tipos de paradas de metro y las distintas agrupaciones de barrios, se ha realizado un mapa en el que se muestran los barrios de Valencia coloreados por el cluster al que pertenecen y superpuesto a estos, las paradas de metro coloreados según su cluster.
 
+
+Los datos utilizados, han sido los usados para el clustering de datos y metro, los geoshape de los barrios y los datos del grafo de la red de metro.
 ```{r}
 dataMetros<-read_parquet("cluster_metro.parquet")
 dataBarrios<-read_parquet("cluster_barrios.parquet")
@@ -45,10 +49,10 @@ load("../00_ferran/graph_metro_valencia.RData")
 color_barrio <- colorFactor(palette =c("#f5587b", "#f0f696","#66ddaa","#2f89fc", "#a56cc1") , domain = dataBarrios$cluster)
 
 
-
+#addProviderTiles(providers$CartoDB.Positron) 
 
 m <- leaflet() %>%
-  addProviderTiles(providers$CartoDB.Positron)  %>%
+  addTiles()  %>%
   setView(lng = -0.3763, lat = 39.4699, zoom = 12) %>%
   addPolygons(data = dataBarrios, fillColor = ~color_barrio(cluster), fillOpacity = 1, weight = 0.5, color = "black", popup = rownames(dataBarrios)) 
  
@@ -97,17 +101,14 @@ m4
 ```
 
 
-
-
-
 Del siguiente gráfico podemos sacar una serie de conclusiones:
 Primeramente, los barrios del cluster verde, no tienen apenas paradas de metro a comparación del resto de barrios, y las paradas que caen en estos barrios se encuentran en las frontera de estos con otro barrio. Además, las paradas de estos barrios son del cluster verde y amarillo, es decir, los menos importantes y centrales dentro de la red.
 
 Los barrios de los clusters amarillo y rojo, tienen una mayor proporcion de paradas de metro, aunque en su mayoria estas son del cluster amarillo y azul claro, paradas intermedias. Sin embargo, observamos paradas del cluster morado y rojas que caen en barrios de estos clusters, son paradas con mucha importancia en la red y que otorgan mucha movilidad, pero no es así para todos los barrios, son zonas puntuales.
 
-Los barrios del cluster azul , tienen paradas del cluster azul oscuro, paradas muy centrales y muy conectadas, esto concuerda ya que estos barrios son los pertenecientes al centro de la ciudad.
+Los barrios del cluster azul , tienen paradas del cluster azul oscuro, paradas muy centrales y muy conectadas, esto concuerda ya que estos barrios son los pertenecientes al centro de la ciudad. Sin embargo, no tienen una gran cantidad de paradas de metro, esto se puede deber ser el centro de la ciudad y no querer saturar de paradas de metro. 
 
-El barrio del cluster morado, cuenta con gran número de paradas de metro, que ademas son centrales y muy importantes para la red.
+El barrio del cluster morado, cuenta con gran número de paradas de metro, que ademas son centrales y muy importantes para la red. Por lo que será el barrio con mayor movilidad en cuanto a transporte metropolitano.
 
 En conclusion, mejores zonas en cuanto a movilidad en el transporte metropolitano son el barrio del cluster morado, los del cluster azul y las zonas donde se encuetran las paradas del cluster morado.
 Las peores zonas en cuanto a movilidad en el transporte metropolitano son los barrios del cluster verde, ya que no cuentan con pocas paradas de metro y que otorgan escasa movilidad y poco centrales.
@@ -115,6 +116,13 @@ Las peores zonas en cuanto a movilidad en el transporte metropolitano son los ba
 ```{r}
 saveRDS(m4, file = "../00_marc/app_shiny_v1/app_shiny/mapas/metros_barrios_cluster.rds")
 ```
+
+
+# Test Independencia
+
+Para poder realizar un análisis más profundo sobre si realmente existe relación entre el cluster de una parada de metro y el cluster del barrio en el que se encuentra, se va a realizar un test chi para saber si existe dependencia.
+
+Primeramente, para aplicar el test chi, debemos obtener la tabla de contingencia entre los clusters de las paradas de metro y los clusters de los barrios. Sin embargo, como un barrio puede tener más de una parada de metro, primero debemos asignar a cada parada de metro el cluster del barrio en el que se encuentra. Esto se ha realizado utilizando las coordenadas de las paradas y los poligonos geoespaciales de los barrios.
 
 
 ```{r}
@@ -150,6 +158,9 @@ for (pt in 1:nrow(dataMetros)) {
 }
 ```
 
+
+Una vez asignado a cada parada de metro el cluster del barrio en el que se encuentra, eliminamos aquellas paradas que se encuentran fuera de la ciudad de Valencia, ya que no pertenecen a ningún barrio.
+
 ```{r}
 dataMetros$cluster_barrio<-cl$cluster_barrio
 
@@ -165,18 +176,9 @@ afc <- table(d$cluster, d$cluster_barrio)
 print(afc)
 ```
 
-```{r matrices}
-# Frecuencias relativas
-miF = afc/sum(afc); round(miF, 4)
-# Frecuencias marginales de filas
-margFilas = rowSums(miF); margFilas
-# Frecuencias marginales de columnas
-margCols = colSums(miF); margCols
-# Frecuencias condicionadas a filas (matriz R)
-condFilas = miF/margFilas; round(condFilas, 4)  
-# Frecuencias condicionadas a columnas (matriz C)
-condCols = t(t(miF)/margCols); round(condCols, 4)  
-```
+
+
+Una vez definida la tabla de contingencia, realizamos el test chi. Recordando que se establece la hipótesis nula de que no existe relación entre los clusters de las paradas de metro y los clusters de los barrios. 
 
 ```{r}
 # Realizar el test de Chi-Cuadrado
@@ -186,7 +188,16 @@ chi2_test <- chisq.test(afc, simulate.p.value = TRUE)
 print(chi2_test)
 
 ```
+Como el p-valor es menor que 0.05, rechazamos la hipótesis nula y concluimos que existe dependencia entre los clusters de las paradas de metro y los clusters de los barrios.
 
+
+# AFC
+
+Debido a la existencia de dependencia, para profundizar más en este análisis, se va a realizar un análisis de correspondencias.
+
+Primeramente vamos a elegir el número de componentes a utilizar en nuestro análisis. Para ello, vamos a realizar un análisis de valores propios.
+
+## Selección de componentes
 ```{r}
 res.afc = CA(afc, graph = FALSE)
 eig.val <- get_eigenvalue(res.afc)
@@ -194,45 +205,59 @@ Vmedia = 100 * (1/nrow(eig.val))
 fviz_eig(res.afc, addlabels = TRUE) +
   geom_hline(yintercept=Vmedia, linetype=2, color="red")
 ```
+Según el criterio del codo, el número de componentes a elegir debería se 2, que explicaría un `r round(eig.val[2,"cumulative.variance.percent"], 1)`% del total de variabilidad de los datos. Sin embargo, se ha observado que había filas y columnas que no estaban bien representadas, por lo que se ha seleccionado 3 componentes, explicando un `r round(eig.val[3,"cumulative.variance.percent"], 1)`% de la variabilidad .
+Una vez seleccionado el número de componentes, se genera el modelo.
+
 ```{r}
 res.afc = CA(afc, graph = FALSE, ncp = 3)
 ```
 
+# Filas
 
-```{r filas1, fig.width=5, fig.height=5}
+```{r filas1, fig.width=10, fig.height=5}
 # Gráfico de filas
-fviz_ca_row(res.afc, axes = c(1,2), repel = TRUE, col.row = "cos2",
-             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
-```
-```{r filas1, fig.width=5, fig.height=5}
 # Gráfico de filas
-fviz_ca_row(res.afc, axes = c(2,3), repel = TRUE, col.row = "cos2",
+b1<-fviz_ca_row(res.afc, axes = c(1,2), repel = TRUE, col.row = "cos2",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+b2<-fviz_ca_row(res.afc, axes = c(2,3), repel = TRUE, col.row = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+gridExtra::grid.arrange(b1, b2, nrow=1)
 ```
 
-```{r columnas1, fig.width=5, fig.height=5}
-fviz_ca_col(res.afc, axes = c(1,2), repel = TRUE, col.col = "contrib",
-             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
-```
 
-```{r columnas1, fig.width=5, fig.height=5}
-fviz_ca_col(res.afc, axes = c(2,3), repel = TRUE, col.col = "contrib",
+#Columnas
+```{r columnas1, fig.width=10, fig.height=5}
+a1<-fviz_ca_col(res.afc, axes = c(1,2), repel = TRUE, col.col = "contrib",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+a2<-fviz_ca_col(res.afc, axes = c(2,3), repel = TRUE, col.col = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+gridExtra::grid.arrange(a1, a2, nrow=1)
 ```
+De este gráfico observamos que en los barrios de los clusters 1 y 3, los clusters de sus clusters tienen perfiles similares.
 
-```{r biplot2, fig.width=5, fig.height=5}
+
+# Biplot
+
+Vamos a realizar los biplots asimétricos para poder observar la relación entre las filas y las columnas.
+
+Primero, mostramos las columnas en el espacio de las filas.
+```{r biplot2, fig.width=10, fig.height=5}
 # Asimetrico: Columnas representadas en espacio de las filas
-fviz_ca_biplot(res.afc, map ="rowprincipal", repel = TRUE) 
+g1<-fviz_ca_biplot(res.afc, map ="rowprincipal", arrow=c(FALSE,TRUE),repel = TRUE) 
+g2<-fviz_ca_biplot(res.afc, map ="rowprincipal", arrow=c(FALSE,TRUE),repel = TRUE, axes=c(2,3)) 
+gridExtra::grid.arrange(g1, g2, nrow=1)
 ```
 
-```{r biplot3, fig.width=7, fig.height=7}
-#añadir una leyenda al grafico
-fviz_ca_biplot(res.afc, 
-               map = "colprincipal", 
-               repel = TRUE, 
-               col.row = "blue",   # Color para las filas
-               col.col = "red") +  # Color para las columnas
-  scale_color_manual(values = c("blue" = "Filas", "red" = "Columnas"), 
-                     labels = c("Filas", "Columnas")) +
-  theme(legend.title = element_blank()) 
+De este primer biplot, podemos concluir que las paradas del cluster 1 (rojo), se encuentran más presentes en barrios del cluster 5 (morado), las paradas más frecuentes en los barrios del cluster 4 (azul), son las del cluster 5 (azul oscuro). Por último, la parada del cluster 3 (verde) son las más frecuentes en barrios del cluster 1 (rojo).
+
+```{r biplot3, fig.width=10, fig.height=5}
+
+g3<-fviz_ca_biplot(res.afc, map = "colprincipal", arrow=c(TRUE,FALSE), repel = TRUE) 
+g4<-fviz_ca_biplot(res.afc, map = "colprincipal", arrow=c(TRUE,FALSE), repel = TRUE, axes=c(2,3)) 
+gridExtra::grid.arrange(g3, g4, nrow=1)
+
 ```
+De este segundo biplot, observamos que los barrios del cluster 4 (azul) presentan en su mayoría paradas del cluster 5 (azul oscuro), los barrios del cluster 5 (morado), presentan en su mayoría paradas del cluster 1 (rojo). Y los barrios del cluster 2 (amarillo), presentan en su mayoría paradas del cluster 4 (azul claro) y 6 (morado).
+
+
+Estas conclusiones concuerdan en gran parte con las obtenidas a través del mapa, sin embargo, este análisis no llega a ser muy concluyente, ya que las paradas de metro no se encuentran en el centro de los barrios, por lo que pese a que cada parada pertenezca a un único barrio, puede ubicarse en la frontera del mismo, siendo muy cercano a otro barrio. Por lo que la mejor forma de obtener las conclusiones es a través del mapa.

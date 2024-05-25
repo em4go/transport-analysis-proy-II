@@ -259,7 +259,7 @@ fviz_cluster(object = list(data=dataMetros2, cluster=complete7), stand = FALSE,
              ellipse.type = "convex", geom = "point", show.clust.cent = FALSE,
              labelsize = 8, palette=rainbow(10))  +
   labs(title = "Modelo jerarquico + Proyeccion PCA",
-       subtitle = "Dist manhattan, Metodo de la media, K=5") +
+       subtitle = "Dist manhattan, Metodo comlete, K=5") +
   theme_bw() +
   theme(legend.position = "bottom")
 ```
