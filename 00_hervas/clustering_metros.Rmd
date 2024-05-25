@@ -439,7 +439,7 @@ dataMetros3$cluster <- ward6
 ```
 
 ```{r}
-data_geo<-read_parquet("../data/info_general_barrio.parquet")
+data_geo<-read_parquet("../data/info_general_barrio_final.parquet")
 
 valencia<- geojson_sf(data_geo$geo_shape)
 load("../00_ferran/graph_metro_valencia.RData")

@@ -508,7 +508,7 @@ Por último, el cluster 5 destaca por la cantidad de transporte público que alb
 Para finalizar la interpretación de los clusters vamos a sacar el porcentaje de barrios de cada cluster que tienen alguno de los servicions especiales (Universidad, Estadio, Hospitales, Cargadores) que hemos seleccionado en el análisis. Ya que no hemos podido tenerlos en cuenta.
 
 ```{r}
-data_geo<-read_parquet("../data/info_general_barrio.parquet")
+data_geo<-read_parquet("../data/info_general_barrio_final.parquet")
 
 dataBarrios3<-cbind(dataBarrios2, geojson_sf(data_geo$geo_shape))
 
