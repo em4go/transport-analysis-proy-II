@@ -23,7 +23,7 @@ library(dplyr)
 valenbisi <- read.csv2("estaciones_valenbisi.csv")
 valenbisi <- st_as_sf(cbind(valenbisi, geojson_sf(valenbisi$geo_shape)))
 
-df <- read_parquet("../data/info_general_barrio.parquet")
+df <- read_parquet("../data/info_general_barrio_final.parquet")
 metros <- read.csv2("./carac_metro_barrio.csv")
 a <- cbind(barrio = df$barrio, geojson_sf(df$geo_shape))
 df_superficie <- merge(a, df, by = "barrio", all.y=TRUE)
