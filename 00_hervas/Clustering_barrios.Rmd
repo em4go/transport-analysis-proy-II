@@ -535,7 +535,7 @@ colors_cluster <- colorFactor(palette =c("#f5587b", "#f0f696","#66ddaa","#2f89fc
 
 
 m <- leaflet() %>% setView(lng = -0.376805, lat = 39.469907, zoom = 12) %>%
-  addProviderTiles(providers$CartoDB.Positron)  %>%
+  addTiles()  %>%
   addPolygons(data = dataBarrios3, fillColor = ~colors_cluster(cluster), fillOpacity = 1, weight = 0.5, color = "black",
               popup = rownames(dataBarrios3))
 
