@@ -483,8 +483,8 @@ plot_graph <- function(m, metros, color1){
 ```
 
 ```{r}
-m2 <- leaflet() %>%addTiles()  %>% setView(lng = -0.375, lat = 39.4667, zoom = 12)
-m2 <- m2 %>%
+m2 <- leaflet() %>%addProviderTiles(providers$CartoDB.Positron)  %>% setView(lng = -0.375, lat = 39.4667, zoom = 12)
+m2 <- m2 %>% 
   addPolygons(data = valencia, fillColor = "transparent", weight = 2, color = "#2F4F4F",dashArray = "3, 7")
 m2 <- plot_graph(m2, dataMetros3, dataMetros3$cluster)
 m2
