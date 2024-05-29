@@ -9,6 +9,8 @@ RUN R -e "install.packages('shiny')"
 RUN R -e "install.packages('leaflet')"
 RUN R -e "install.packages('shinythemes')"
 RUN R -e "install.packages('sf')"
+RUN R -e "install.packages('arrow')"
+
 
 # directorio de trabajo
 WORKDIR /app_shiny
