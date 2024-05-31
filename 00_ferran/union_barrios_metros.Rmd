@@ -90,19 +90,9 @@ carac_metro_barrio <- carac_metro_barrio[!is.na(carac_metro_barrio$barrio) | car
 ```
 
 
-# Relaciones entre los barrios y las estaciones de metro
-
-## Correlación entre las variables
-
-En este apartado vamos a estudiar las correlaciones lineales entre las distintas variables de nuestro nuevo dataset, de forma que se puedan ver que entre las características de un barrio influyen más en las características de las estaciones de este, ya sea de forma negativa o positiva.
-
-```{r}
-carac_metro_barrio_num <- carac_metro_barrio %>% 
-  select(-barrio, -stop_id, -stop_lat, -stop_lon, -geometry, -lines, -stop_name, -Distrito)
-correlacion_metros <- cor(carac_metro_barrio_num, use = "complete.obs")
-```
 
 
+# Estudio de la importancia de los barrios en la red de metro
 
 ## Barrios más cercanos
 
